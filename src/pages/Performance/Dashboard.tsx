@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Award, TrendingUp, CheckCircle2, Settings } from "lucide-react";
+import { Award, CheckCircle2, Settings, TrendingUp } from "lucide-react";
 import { pageStyle, containerStyle, PageTitle, SaaSCard, SaaSTab, StatCard, ListItem, StatusBadge } from "../../components/saas";
 
 export default function PerformanceDashboard() {
@@ -9,7 +9,7 @@ export default function PerformanceDashboard() {
   return (
     <div style={pageStyle}>
       <div style={containerStyle}>
-        <PageTitle title="绩效看板" subtitle="绩效记录、申请与审核管理" />
+        <PageTitle title="绩效看板" subtitle="绩效记录、申请、审核与管理概览" />
         <SaaSTab items={tabs} active={tab} onChange={setTab} />
 
         {tab === "我的绩效" && (
@@ -63,19 +63,21 @@ export default function PerformanceDashboard() {
                 <Settings size={16} color="#4F46E5" /> 预设管理
               </div>
               {[
-                { name: "食材节约", type: "加分", default: "+10" },
-                { name: "按时到岗", type: "加分", default: "+1" },
-                { name: "卫生检查不合格", type: "扣分", default: "-5" },
-                { name: "迟到早退", type: "扣分", default: "-3" },
+                { name: "食材节约", type: "加分", value: "+10" },
+                { name: "按时到岗", type: "加分", value: "+1" },
+                { name: "卫生检查不合格", type: "扣分", value: "-5" },
+                { name: "迟到早退", type: "扣分", value: "-3" },
               ].map((item) => (
-                <ListItem key={item.name} title={item.name} subtitle={`${item.type} · 默认 ${item.default}`} right={<StatusBadge text={item.type} type={item.type === "加分" ? "success" : "danger"} />} />
+                <ListItem key={item.name} title={item.name} subtitle={`${item.type} · 默认 ${item.value}`} right={<StatusBadge text={item.type} type={item.type === "加分" ? "success" : "danger"} />} />
               ))}
             </SaaSCard>
             <SaaSCard>
               <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
                 <CheckCircle2 size={16} color="#059669" /> 记录调整
               </div>
-              <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6 }}>管理员可对某员工的绩效记录进行手动调整，调整后会同步通知相关员工。</div>
+              <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6 }}>
+                管理员可对员工绩效记录进行手动调整；深度功能后续接入数据库和通知。
+              </div>
             </SaaSCard>
           </>
         )}
