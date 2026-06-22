@@ -59,14 +59,13 @@ export default function PurchaseReview() {
           <span style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{order.id.slice(-8)}</span>
           <StatusBadge text={status.text} type={status.type} />
         </div>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: "#0F172A", lineHeight: 1.5 }}>{itemSummary(order)}</div>
-        <div style={{ fontSize: 12, color: "#64748B", marginBottom: showActions ? 12 : 0 }}>
-          申请人：{order.user?.realName || "未知"} · {new Date(order.createdAt).toLocaleString()}
-        </div>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 8 }}>{order.user?.realName || "未知员工"}</div>
+        <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6 }}>{itemSummary(order)}</div>
+        <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 8 }}>{new Date(order.createdAt).toLocaleString()}</div>
         {showActions ? (
-          <div style={{ display: "flex", gap: 8 }}>
-            <SaaSButton onClick={() => handleReview(order.id, true)} style={{ flex: 1 }}>通过</SaaSButton>
-            <SaaSOutlineButton onClick={() => handleReview(order.id, false)} style={{ flex: 1, color: "#DC2626", borderColor: "#FECACA" }}>驳回</SaaSOutlineButton>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
+            <SaaSOutlineButton onClick={() => handleReview(order.id, false)} style={{ color: "#DC2626" }}>驳回</SaaSOutlineButton>
+            <SaaSButton onClick={() => handleReview(order.id, true)}>通过</SaaSButton>
           </div>
         ) : null}
       </SaaSCard>
@@ -76,10 +75,10 @@ export default function PurchaseReview() {
   return (
     <div style={pageStyle}>
       <div style={containerStyle}>
-        <PageTitle title="申购审核" subtitle="对员工提交的申购单进行通过或驳回" />
+        <PageTitle title="申购审核" subtitle="审核门店员工提交的食材申购单" />
         <SaaSTab items={tabs} active={tab} onChange={setTab} />
 
-        {loading ? <SaaSCard>加载中...</SaaSCard> : null}
+        {loading ? <SaaSCard><EmptyState icon="⏳" text="加载中..." /></SaaSCard> : null}
 
         {!loading && tab === "待审核" && (
           pendingOrders.length === 0 ? (
@@ -89,7 +88,7 @@ export default function PurchaseReview() {
 
         {!loading && tab === "已审核" && (
           reviewedOrders.length === 0 ? (
-            <SaaSCard><EmptyState icon="📦" text="暂无已审核申购" /></SaaSCard>
+            <SaaSCard><EmptyState icon="📭" text="暂无已审核申购" /></SaaSCard>
           ) : reviewedOrders.map((order) => renderOrder(order, false))
         )}
 
@@ -99,7 +98,7 @@ export default function PurchaseReview() {
           ) : reviewedOrders.map((order) => (
             <SaaSCard key={`log_${order.id}`} style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 13, color: "#64748B", lineHeight: 1.6 }}>
-                {new Date(order.createdAt).toLocaleString()} · {order.user?.realName || "未知"} 的申购单已{order.status === "approved" ? "通过" : "驳回"}
+                {new Date(order.createdAt).toLocaleString()} · {order.user?.realName || "未知员工"} 的申购单已{order.status === "approved" ? "通过" : "驳回"}
               </div>
             </SaaSCard>
           ))

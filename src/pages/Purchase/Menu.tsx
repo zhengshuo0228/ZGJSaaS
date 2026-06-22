@@ -159,9 +159,7 @@ export default function PurchaseMenu() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 800 }}>上传预览</div>
-                <div style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>
-                  共 {parsedRows.length} 条，正确 {validRows.length} 条，错误 {invalidRows.length} 条
-                </div>
+                <div style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>共 {parsedRows.length} 条，正确 {validRows.length} 条，错误 {invalidRows.length} 条</div>
               </div>
               <SaaSButton onClick={handleUpload} style={{ padding: "9px 14px" }}>
                 {uploading ? "上传中..." : "确认上传"}
@@ -171,7 +169,7 @@ export default function PurchaseMenu() {
             <div style={{ maxHeight: 180, overflowY: "auto" }}>
               {parsedRows.slice(0, 20).map((row) => (
                 <div key={row.row} style={{ fontSize: 12, color: row.valid ? "#059669" : "#DC2626", padding: "6px 0", borderBottom: "1px solid #F1F5F9" }}>
-                  {row.valid ? "✅" : "❌"} 第{row.row}行：{row.name || "未填写品名"} {row.defaultQty}{row.unit} {row.category}
+                  {row.valid ? "✅" : "❌"} 第 {row.row} 行：{row.name || "未填写品名"} {row.defaultQty}{row.unit} {row.category}
                   {row.error ? `（${row.error}）` : ""}
                 </div>
               ))}
@@ -214,14 +212,9 @@ export default function PurchaseMenu() {
               <div key={item.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "14px 16px", borderBottom: "1px solid #F1F5F9" }}>
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>{item.name}</div>
-                  <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>
-                    {item.category} · {item.subCategory || "未分类"}
-                  </div>
+                  <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>{item.category} · {item.subCategory || "未分类"}</div>
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#059669", flexShrink: 0 }}>
-                  {item.defaultQty}
-                  {item.unit}
-                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#059669", flexShrink: 0 }}>{item.defaultQty}{item.unit}</div>
               </div>
             ))
           )}

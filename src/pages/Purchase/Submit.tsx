@@ -138,9 +138,9 @@ export default function PurchaseSubmit() {
                   <div style={{ fontSize: 12, color: "#94A3B8", marginTop: 4 }}>{item.unit}</div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div onClick={() => updateQty(item.menuId, Math.max(1, item.qty - 1))} style={{ width: 30, height: 30, borderRadius: "50%", border: "1.5px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", background: "#fff" }}><Minus size={12} /></div>
+                  <div onClick={() => updateQty(item.menuId, Math.max(1, item.qty - 1))} style={qtyButtonStyle}><Minus size={12} /></div>
                   <span style={{ width: 38, textAlign: "center", fontSize: 14, fontWeight: 700 }}>{item.qty}</span>
-                  <div onClick={() => updateQty(item.menuId, item.qty + 1)} style={{ width: 30, height: 30, borderRadius: "50%", background: "#059669", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><Plus size={12} /></div>
+                  <div onClick={() => updateQty(item.menuId, item.qty + 1)} style={{ ...qtyButtonStyle, background: "#059669", color: "#fff", border: "none" }}><Plus size={12} /></div>
                   <div onClick={() => removeItem(item.menuId)} style={{ cursor: "pointer", padding: 4 }}><Trash2 size={16} color="#DC2626" /></div>
                 </div>
               </div>
@@ -163,10 +163,7 @@ export default function PurchaseSubmit() {
                   >
                     <div style={{ fontSize: 14, fontWeight: 700, color: "#0F172A", lineHeight: 1.3 }}>{menuItem.name}</div>
                     <div style={{ fontSize: 12, color: "#64748B", marginTop: 4 }}>{menuItem.category} · {menuItem.subCategory}</div>
-                    <div style={{ fontSize: 12, color: "#059669", fontWeight: 700, marginTop: 6 }}>
-                      {menuItem.defaultQty}
-                      {menuItem.unit}
-                    </div>
+                    <div style={{ fontSize: 12, color: "#059669", fontWeight: 700, marginTop: 6 }}>{menuItem.defaultQty}{menuItem.unit}</div>
                     {isSelected ? (
                       <div style={{ position: "absolute", top: 6, right: 6, width: 16, height: 16, borderRadius: "50%", background: "#059669", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         <CheckCircle2 size={10} color="#fff" />
@@ -186,3 +183,15 @@ export default function PurchaseSubmit() {
     </div>
   );
 }
+
+const qtyButtonStyle: React.CSSProperties = {
+  width: 30,
+  height: 30,
+  borderRadius: "50%",
+  border: "1.5px solid #E2E8F0",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  cursor: "pointer",
+  background: "#fff",
+};

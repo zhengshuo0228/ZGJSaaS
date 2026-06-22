@@ -24,7 +24,7 @@ const emptyStats: StatsSummary = {
 const rangeOptions = [
   { key: "today", label: "今天" },
   { key: "yesterday", label: "昨天" },
-  { key: "week", label: "近7天" },
+  { key: "week", label: "本周" },
   { key: "month", label: "本月" },
 ];
 
@@ -38,11 +38,13 @@ export default function StatsPage() {
     });
   }, [range]);
 
+  const activeLabel = rangeOptions.find((item) => item.key === range)?.label || "今天";
+
   return (
     <div style={pageStyle}>
       <div style={containerStyle}>
         <PageTitle title="数据统计" subtitle="查看门店申购、食材、员工与通知概览" />
-        <SaaSTab items={rangeOptions.map((item) => item.label)} active={rangeOptions.find((item) => item.key === range)?.label || "今天"} onChange={(label) => setRange(rangeOptions.find((item) => item.label === label)?.key || "today")} />
+        <SaaSTab items={rangeOptions.map((item) => item.label)} active={activeLabel} onChange={(label) => setRange(rangeOptions.find((item) => item.label === label)?.key || "today")} />
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
           <StatCard icon={<ShoppingCart size={18} />} label="申购单数" value={stats.purchase.total} detail={`通过 ${stats.purchase.approved} · 待审 ${stats.purchase.pending}`} color="#059669" />
@@ -52,12 +54,27 @@ export default function StatsPage() {
         </div>
 
         <SaaSCard style={{ marginTop: 16, padding: 0, overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#64748B", background: "#F8FAFC", borderBottom: "1px solid #E2E8F0" }}>运营概览</div>
-          <ListItem title="申购审核状态" subtitle={`通过 ${stats.purchase.approved} · 待审 ${stats.purchase.pending} · 驳回 ${stats.purchase.rejected}`} right={<span style={{ fontSize: 14, fontWeight: 700, color: "#059669" }}>{stats.purchase.total} 单</span>} />
-          <ListItem title="未读通知" subtitle="当前账号相关通知" right={<span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 14, fontWeight: 700, color: "#D97706" }}><Bell size={14} />{stats.notification.unread}</span>} />
-          <ListItem title="绩效/排休" subtitle={`绩效申请 ${stats.performance.applied} · 请休 ${stats.schedule.onLeave}`} right={<span style={{ fontSize: 14, fontWeight: 700, color: "#64748B" }}>待接入</span>} />
+          <div style={sectionHeaderStyle}>运营概览</div>
+          <ListItem title="申购审核状态" subtitle={`通过 ${stats.purchase.approved} · 待审 ${stats.purchase.pending} · 驳回 ${stats.purchase.rejected}`} right={<span style={rightNumberStyle}>{stats.purchase.total} 单</span>} />
+          <ListItem title="未读通知" subtitle="当前账号相关通知" right={<span style={{ ...rightNumberStyle, color: "#D97706", display: "inline-flex", alignItems: "center", gap: 4 }}><Bell size={14} />{stats.notification.unread}</span>} />
+          <ListItem title="绩效/排休" subtitle={`绩效申请 ${stats.performance.applied} · 请休 ${stats.schedule.onLeave}`} right={<span style={{ ...rightNumberStyle, color: "#64748B" }}>待接入</span>} />
         </SaaSCard>
       </div>
     </div>
   );
 }
+
+const sectionHeaderStyle: React.CSSProperties = {
+  padding: "12px 16px",
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#64748B",
+  background: "#F8FAFC",
+  borderBottom: "1px solid #E2E8F0",
+};
+
+const rightNumberStyle: React.CSSProperties = {
+  fontSize: 14,
+  fontWeight: 700,
+  color: "#059669",
+};
