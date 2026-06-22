@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import type React from "react";
 import { ChevronRight, Shield } from "lucide-react";
-import { pageStyle, containerStyle, PageTitle, SaaSCard, SaaSTab, ListItem, StatusBadge } from "../../components/saas";
+import { pageStyle, containerStyle, PageTitle, SaaSCard, SaaSTab, ListItem, StatusBadge, EmptyState } from "../../components/saas";
 import { getPositions } from "../../api/mockApi";
 import type { Position } from "../../types";
 
-const FALLBACK_GROUPS = [
+const fallbackGroups = [
   {
     group: "厨房组",
     department: "kitchen",
@@ -42,7 +43,7 @@ export default function AdminPosition() {
 
   useEffect(() => {
     getPositions().then((result) => {
-      if (result.code === 0) setPositions(result.data as Position[]);
+      if (result.code === 0) setPositions(Array.isArray(result.data) ? result.data : []);
     });
   }, []);
 
@@ -56,7 +57,7 @@ export default function AdminPosition() {
   }, [positions]);
 
   const selectedGroup = groups.find((item) => item.group === group) || groups[0];
-  const fallbackGroup = FALLBACK_GROUPS.find((item) => item.group === group) || FALLBACK_GROUPS[0];
+  const fallbackGroup = fallbackGroups.find((item) => item.group === group) || fallbackGroups[0];
   const selectedPositions = selectedGroup.positions.length > 0 ? selectedGroup.positions : fallbackGroup.positions.map((name, index) => ({
     id: `${fallbackGroup.department}_${index}`,
     name,
@@ -74,12 +75,12 @@ export default function AdminPosition() {
   return (
     <div style={pageStyle}>
       <div style={containerStyle}>
-        <PageTitle title="岗位管理" subtitle="岗位是权限载体；注册默认单岗，管理员可在账号管理中调整岗位" />
+        <PageTitle title="岗位管理" subtitle="岗位是权限载体；注册默认单岗，管理员可在账号管理中调整岗位。" />
         <SaaSTab items={groups.map((item) => item.group)} active={group} onChange={setGroup} />
 
         <SaaSCard style={{ padding: 0, overflow: "hidden", marginBottom: 16 }}>
           <div style={sectionHeaderStyle}>{selectedGroup.group}</div>
-          {selectedPositions.map((position) => (
+          {selectedPositions.length === 0 ? <EmptyState icon="🧑‍🍳" text="暂无岗位" /> : selectedPositions.map((position) => (
             <ListItem
               key={position.id}
               title={position.name}
@@ -97,7 +98,7 @@ export default function AdminPosition() {
 
         <SaaSCard>
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>权限分类 - {selectedGroup.group}</div>
-          <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12 }}>展示当前岗位组已配置的功能权限，后续可扩展为可编辑权限矩阵。</div>
+          <div style={{ fontSize: 13, color: "#64748B", marginBottom: 12, lineHeight: 1.6 }}>展示当前岗位组已配置的功能权限。权限编辑后续会继续扩展为矩阵配置。</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {(permissions.length > 0 ? permissions : Object.keys(permissionLabels).slice(0, 8)).map((perm, index) => (
               <StatusBadge key={perm} text={permissionLabels[perm] || perm} type={index % 3 === 0 ? "success" : index % 3 === 1 ? "info" : "warning"} />

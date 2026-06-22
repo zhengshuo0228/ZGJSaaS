@@ -1,21 +1,23 @@
 import { useEffect, useState } from "react";
+import type React from "react";
 import { ChevronRight, Store, Users } from "lucide-react";
-import { pageStyle, containerStyle, PageTitle, SaaSCard, SaaSTab, ListItem, StatusBadge, SaaSButton } from "../../components/saas";
+import { pageStyle, containerStyle, PageTitle, SaaSCard, SaaSTab, ListItem, StatusBadge, SaaSButton, EmptyState } from "../../components/saas";
 import { getAdminUsers, getDepartments, getStores } from "../../api/mockApi";
 import type { Department, Store as StoreType, User } from "../../types";
+
+const tabs = ["跨部门授权", "跨门店授权"];
 
 export default function AdminAuth() {
   const [tab, setTab] = useState("跨部门授权");
   const [users, setUsers] = useState<User[]>([]);
   const [stores, setStores] = useState<StoreType[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const tabs = ["跨部门授权", "跨门店授权"];
 
   useEffect(() => {
     Promise.all([getAdminUsers(), getStores(), getDepartments()]).then(([userResult, storeResult, departmentResult]) => {
-      if (userResult.code === 0) setUsers(userResult.data as User[]);
-      if (storeResult.code === 0) setStores(storeResult.data as StoreType[]);
-      if (departmentResult.code === 0) setDepartments(departmentResult.data as Department[]);
+      if (userResult.code === 0) setUsers(Array.isArray(userResult.data) ? userResult.data : []);
+      if (storeResult.code === 0) setStores(Array.isArray(storeResult.data) ? storeResult.data : []);
+      if (departmentResult.code === 0) setDepartments(Array.isArray(departmentResult.data) ? departmentResult.data : []);
     });
   }, []);
 
@@ -27,19 +29,19 @@ export default function AdminAuth() {
   return (
     <div style={pageStyle}>
       <div style={containerStyle}>
-        <PageTitle title="授权管理" subtitle="管理跨部门与跨门店访问权限，默认员工只看本门店本部门数据" />
+        <PageTitle title="授权管理" subtitle="管理员设置跨部门访问，超级管理员设置跨门店访问。" />
         <SaaSTab items={tabs} active={tab} onChange={setTab} />
 
         {tab === "跨部门授权" ? (
           <>
             <SaaSCard style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                <Users size={16} color="#059669" /> 新建跨部门授权
+              <div style={titleStyle}>
+                <Users size={16} color="#059669" /> 跨部门授权
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={selectBoxStyle}>{sampleUser ? `${sampleUser.realName}（${sampleUser.username}）` : "暂无可选员工"}</div>
                 <div style={selectBoxStyle}>{targetDepartment ? `目标部门：${targetDepartment.name}` : "请选择目标部门"}</div>
-                <SaaSButton onClick={() => alert("跨部门授权接口后续接入；当前已保留页面入口和权限展示")} block>
+                <SaaSButton onClick={() => alert("跨部门授权接口待接入，当前先保留页面入口和权限说明。")} block>
                   创建授权
                 </SaaSButton>
               </div>
@@ -51,28 +53,23 @@ export default function AdminAuth() {
                 <ListItem
                   title={sampleUser.realName}
                   subtitle={`${sourceDepartment?.name || "本部门"} → ${targetDepartment?.name || "目标部门"}`}
-                  right={
-                    <>
-                      <StatusBadge text="示例" type="info" />
-                      <ChevronRight size={16} color="#94A3B8" />
-                    </>
-                  }
+                  right={<><StatusBadge text="示例" type="info" /><ChevronRight size={16} color="#94A3B8" /></>}
                 />
               ) : (
-                <ListItem title="暂无员工数据" subtitle="创建账号后可在这里维护跨部门访问权限" />
+                <EmptyState icon="🔐" text="创建账号后可维护跨部门访问权限" />
               )}
             </SaaSCard>
           </>
         ) : (
           <>
             <SaaSCard style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                <Store size={16} color="#4F46E5" /> 新建跨门店授权
+              <div style={titleStyle}>
+                <Store size={16} color="#4F46E5" /> 跨门店授权
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div style={selectBoxStyle}>{sampleUser ? `${sampleUser.realName}（${sampleUser.username}）` : "暂无可选员工"}</div>
                 <div style={selectBoxStyle}>{targetStore ? `目标门店：${targetStore.name}` : "请选择目标门店"}</div>
-                <SaaSButton onClick={() => alert("跨门店授权仅超级管理员可操作，接口后续接入")} block>
+                <SaaSButton onClick={() => alert("跨门店授权仅超级管理员可操作，接口待接入。")} block>
                   创建授权
                 </SaaSButton>
               </div>
@@ -82,13 +79,8 @@ export default function AdminAuth() {
               <div style={sectionHeaderStyle}>授权列表</div>
               <ListItem
                 title="跨门店权限"
-                subtitle="仅超级管理员可维护；有多门店权限时首页显示门店切换器"
-                right={
-                  <>
-                    <StatusBadge text="超管" type="warning" />
-                    <ChevronRight size={16} color="#94A3B8" />
-                  </>
-                }
+                subtitle="仅超级管理员可维护；有多门店权限时首页显示门店切换器。"
+                right={<><StatusBadge text="超管" type="warning" /><ChevronRight size={16} color="#94A3B8" /></>}
               />
             </SaaSCard>
           </>
@@ -98,6 +90,7 @@ export default function AdminAuth() {
   );
 }
 
+const titleStyle: React.CSSProperties = { fontSize: 15, fontWeight: 700, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 };
 const selectBoxStyle: React.CSSProperties = {
   padding: "12px 14px",
   border: "1.5px solid #E2E8F0",
