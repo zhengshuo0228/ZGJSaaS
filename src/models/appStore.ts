@@ -7,7 +7,7 @@ interface AppState {
   currentPositions: Position[];
   token: string | null;
   isAuthenticated: boolean;
-  login: (user: User, positions: Position[]) => void;
+  login: (user: User, positions: Position[], token?: string) => void;
   logout: () => void;
 
   // Store
@@ -33,10 +33,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   stores: [],
   notifications: [],
 
-  login: (user, positions) => {
+  login: (user, positions, token = localStorage.getItem("token") || "mock-token") => {
     localStorage.setItem("currentUser", JSON.stringify(user));
     localStorage.setItem("currentPositions", JSON.stringify(positions));
-    set({ currentUser: user, currentPositions: positions, token: "mock-token", isAuthenticated: true, currentStoreId: user.storeId || "" });
+    localStorage.setItem("token", token);
+    set({ currentUser: user, currentPositions: positions, token, isAuthenticated: true, currentStoreId: user.storeId || "" });
   },
 
   logout: () => {

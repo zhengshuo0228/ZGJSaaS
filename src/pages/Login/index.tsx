@@ -18,7 +18,7 @@ export default function LoginPage() {
     try {
       const res = await login({ username, password });
       if (res.code === 0) {
-        doLogin(res.data.user, res.data.positions);
+        doLogin(res.data.user, res.data.positions, res.data.token);
         alert("登录成功");
         navigate("/");
       }
