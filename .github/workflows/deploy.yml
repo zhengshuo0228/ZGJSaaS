@@ -43,7 +43,3 @@ jobs:
       - name: Upload dist
         run: |
           rsync -az --delete dist/ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/var/www/kxzs-pms/"
-
-      - name: Reload Nginx
-        run: |
-          ssh "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "sudo nginx -t && sudo systemctl reload nginx"
