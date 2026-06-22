@@ -108,6 +108,18 @@ export async function getPositions() {
   return realOrMock(() => realApi.get("/positions"), () => MOCK_POSITIONS);
 }
 
+export async function getStatsSummary(range = "today") {
+  return realOrMock(() => realApi.get("/stats/summary", { params: { range } }), () => ({
+    range,
+    purchase: { total: 0, approved: 0, rejected: 0, pending: 0, completionRate: 0 },
+    ingredient: { total: MENU_ITEMS.length },
+    account: { activeUsers: MOCK_USERS.length },
+    notification: { unread: MOCK_NOTIFICATIONS.filter((item) => !item.read).length },
+    performance: { applied: 0, approved: 0 },
+    schedule: { onLeave: 0, onDuty: MOCK_USERS.length },
+  }));
+}
+
 export async function getNotifications() {
   return realOrMock(() => realApi.get("/notifications"), () => MOCK_NOTIFICATIONS);
 }

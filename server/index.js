@@ -126,6 +126,55 @@ app.get("/api/positions", async (_req, res) => {
   res.json(ok(positions.map(toPosition)));
 });
 
+app.get("/api/stats/summary", requireAuth, async (req, res) => {
+  const range = String(req.query.range || "today");
+  const now = new Date();
+  const start = new Date(now);
+  if (range === "yesterday") {
+    start.setDate(now.getDate() - 1);
+    start.setHours(0, 0, 0, 0);
+  } else if (range === "week") {
+    start.setDate(now.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+  } else if (range === "month") {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+  } else {
+    start.setHours(0, 0, 0, 0);
+  }
+  const end = new Date(start);
+  if (range === "yesterday") end.setDate(start.getDate() + 1);
+  else end.setTime(now.getTime());
+
+  const createdAt = { gte: start, lt: end };
+  const orderWhere = req.user.username === "000" ? { createdAt } : { createdAt, storeId: req.user.storeId };
+  const [totalOrders, approvedOrders, rejectedOrders, pendingOrders, ingredients, activeUsers, unreadNotifications] = await Promise.all([
+    prisma.purchaseOrder.count({ where: orderWhere }),
+    prisma.purchaseOrder.count({ where: { ...orderWhere, status: "approved" } }),
+    prisma.purchaseOrder.count({ where: { ...orderWhere, status: "rejected" } }),
+    prisma.purchaseOrder.count({ where: { ...orderWhere, status: "pending" } }),
+    prisma.ingredient.count(),
+    prisma.user.count({ where: req.user.username === "000" ? { status: "active" } : { status: "active", storeId: req.user.storeId } }),
+    prisma.notification.count({ where: { OR: [{ recipientId: req.user.id }, { recipientId: null }], read: false } }),
+  ]);
+
+  res.json(ok({
+    range,
+    purchase: {
+      total: totalOrders,
+      approved: approvedOrders,
+      rejected: rejectedOrders,
+      pending: pendingOrders,
+      completionRate: totalOrders ? Math.round((approvedOrders / totalOrders) * 100) : 0,
+    },
+    ingredient: { total: ingredients },
+    account: { activeUsers },
+    notification: { unread: unreadNotifications },
+    performance: { applied: 0, approved: 0 },
+    schedule: { onLeave: 0, onDuty: activeUsers },
+  }));
+});
+
 app.get("/api/notifications", async (req, res) => {
   const recipientId = req.user?.id;
   const notifications = await prisma.notification.findMany({
