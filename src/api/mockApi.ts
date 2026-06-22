@@ -28,6 +28,16 @@ type LoginResult = {
   positions: typeof MOCK_POSITIONS;
 };
 
+type RegisterPayload = {
+  username: string;
+  password: string;
+  realName: string;
+  storeId: string;
+  departmentId: string;
+  positionId: string;
+  remark?: string;
+};
+
 const ok = <T>(data: T): ApiResponse<T> => ({ code: 0, data });
 const realApi = api as any;
 
@@ -64,6 +74,10 @@ export async function logout() {
   return realOrMock(() => realApi.post("/logout"), () => true);
 }
 
+export async function register(payload: RegisterPayload) {
+  return realOrMock(() => realApi.post("/register", payload), () => ({ ...payload, id: `mock_${Date.now()}`, status: "pending" }));
+}
+
 export async function getStores() {
   return realOrMock(() => realApi.get("/stores"), () => MOCK_STORES);
 }
@@ -97,6 +111,14 @@ export async function getMenu() {
 
 export async function getOrders() {
   return realOrMock(() => realApi.get("/purchase/orders"), () => PURCHASE_ORDERS);
+}
+
+export async function getRegistrations() {
+  return realOrMock(() => realApi.get("/admin/registrations"), () => []);
+}
+
+export async function approveRegistration(id: string, approved: boolean) {
+  return realOrMock(() => realApi.put(`/admin/registrations/${id}`, { approved }), () => ({ id, status: approved ? "approved" : "rejected" }));
 }
 
 export function getRandomWelcomeMessage() {

@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { pageStyle, containerStyle, PageTitle, SaaSCard, SaaSInput, SaaSButton, SaaSTab, ListItem, StatusBadge } from "../../components/saas";
 
 export default function AdminAccount() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState("账号列表");
   const tabs = ["账号列表", "新建账号", "注册审批", "授权管理"];
 
@@ -47,10 +49,15 @@ export default function AdminAccount() {
 
   const approval = (
     <SaaSCard style={{ padding: 0, overflow: "hidden" }}>
-      <ListItem title="新注册申请" subtitle="用户名 zhangsan · 厨房 · 厨师长" right={<StatusBadge text="待审批" type="warning" />} />
-      <div style={{ display: "flex", gap: 8, padding: "0 16px 16px" }}>
-        <div style={{ flex: 1, padding: "11px 0", borderRadius: 14, background: "#059669", color: "#fff", textAlign: "center", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>通过</div>
-        <div style={{ flex: 1, padding: "11px 0", borderRadius: 14, background: "#fff", color: "#DC2626", border: "1.5px solid #FEE2E2", textAlign: "center", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>驳回</div>
+      <ListItem
+        title="注册审批"
+        subtitle="查看首页注册申请，通过后员工即可登录"
+        right={<><StatusBadge text="去处理" type="warning" /><ChevronRight size={16} color="#94A3B8" /></>}
+      />
+      <div style={{ padding: "0 16px 16px" }}>
+        <SaaSButton onClick={() => navigate("/admin/registration")} block>
+          打开注册审批
+        </SaaSButton>
       </div>
     </SaaSCard>
   );
