@@ -180,6 +180,30 @@ app.post("/api/purchase/orders", requireAuth, async (req, res) => {
   res.json(ok({ ...order, user: toUser(order.user), createdAt: order.createdAt.toISOString() }));
 });
 
+app.put("/api/purchase/orders/:id", requireAuth, async (req, res) => {
+  const { approved } = req.body || {};
+  const status = approved ? "approved" : "rejected";
+  const order = await prisma.purchaseOrder.update({
+    where: { id: req.params.id },
+    data: { status },
+    include: { items: true, user: true },
+  });
+
+  const itemSummary = order.items.map((item) => `${item.name}${item.qty}${item.unit}`).join("，");
+  await prisma.notification.create({
+    data: {
+      type: "purchase_review",
+      title: "申购审核",
+      content: `你的申购单「${itemSummary}」已${approved ? "通过" : "驳回"}`,
+      recipientId: order.userId,
+      linkType: "history",
+      linkId: order.id,
+    },
+  });
+
+  res.json(ok({ ...order, user: toUser(order.user), createdAt: order.createdAt.toISOString() }));
+});
+
 app.get("/api/admin/registrations", requireAuth, async (_req, res) => {
   const list = await prisma.registration.findMany({ orderBy: { createdAt: "desc" } });
   res.json(ok(list));

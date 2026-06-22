@@ -62,9 +62,7 @@ export async function login(payload: LoginPayload): Promise<ApiResponse<LoginRes
     return ok(normalizeLoginResult(data));
   } catch (error) {
     const user = MOCK_USERS.find((item) => item.username === payload.username && item.password === payload.password);
-    if (!user) {
-      throw error;
-    }
+    if (!user) throw error;
     const positions = MOCK_POSITIONS.filter((position) => user.positionIds.includes(position.id));
     return ok({ token: "mock-token", user, positions });
   }
@@ -109,8 +107,11 @@ export async function getMenu() {
   return realOrMock(() => realApi.get("/purchase/menu"), () => MENU_ITEMS);
 }
 
-export async function getOrders() {
-  return realOrMock(() => realApi.get("/purchase/orders"), () => PURCHASE_ORDERS);
+export async function getOrders(status?: string) {
+  return realOrMock(
+    () => realApi.get("/purchase/orders", { params: status ? { status } : undefined }),
+    () => (status ? PURCHASE_ORDERS.filter((order) => order.status === status) : PURCHASE_ORDERS)
+  );
 }
 
 export async function submitPurchaseOrder(items: Array<{ menuId?: string; name: string; qty: number; unit: string }>) {
@@ -120,6 +121,10 @@ export async function submitPurchaseOrder(items: Array<{ menuId?: string; name: 
     status: "pending",
     createdAt: new Date().toISOString(),
   }));
+}
+
+export async function reviewPurchaseOrder(id: string, approved: boolean) {
+  return realOrMock(() => realApi.put(`/purchase/orders/${id}`, { approved }), () => ({ id, status: approved ? "approved" : "rejected" }));
 }
 
 export async function getRegistrations() {
