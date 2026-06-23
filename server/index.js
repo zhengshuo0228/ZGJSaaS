@@ -126,6 +126,31 @@ app.get("/api/positions", async (_req, res) => {
   res.json(ok(positions.map(toPosition)));
 });
 
+async function getAccessScope(user) {
+  if (!user || user.username === "000") {
+    return { all: true, storeIds: [], departmentIds: [] };
+  }
+
+  const authorizations = await prisma.authorization.findMany({ where: { userId: user.id } });
+  const storeIds = new Set([user.storeId]);
+  const departmentIds = new Set([user.departmentId]);
+
+  for (const item of authorizations) {
+    if (item.type === "cross_store") storeIds.add(item.targetId);
+    if (item.type === "cross_dept") departmentIds.add(item.targetId);
+  }
+
+  return { all: false, storeIds: Array.from(storeIds), departmentIds: Array.from(departmentIds) };
+}
+
+function scopedStoreWhere(scope) {
+  return scope.all ? {} : { storeId: { in: scope.storeIds } };
+}
+
+function scopedUserWhere(scope) {
+  return scope.all ? {} : { storeId: { in: scope.storeIds }, departmentId: { in: scope.departmentIds } };
+}
+
 app.get("/api/stats/summary", requireAuth, async (req, res) => {
   const range = String(req.query.range || "today");
   const now = new Date();
@@ -146,17 +171,20 @@ app.get("/api/stats/summary", requireAuth, async (req, res) => {
   if (range === "yesterday") end.setDate(start.getDate() + 1);
   else end.setTime(now.getTime());
 
+  const scope = await getAccessScope(req.user);
   const createdAt = { gte: start, lt: end };
-  const orderWhere = req.user.username === "000" ? { createdAt } : { createdAt, storeId: req.user.storeId };
-  const recordWhere = req.user.username === "000" ? { createdAt } : { createdAt, storeId: req.user.storeId };
-  const leaveWhere = req.user.username === "000" ? { createdAt, type: "休假" } : { createdAt, type: "休假", storeId: req.user.storeId };
+  const storeWhere = scopedStoreWhere(scope);
+  const userWhere = scopedUserWhere(scope);
+  const orderWhere = { createdAt, ...storeWhere };
+  const recordWhere = { createdAt, ...storeWhere };
+  const leaveWhere = { createdAt, type: "休假", ...storeWhere };
   const [totalOrders, approvedOrders, rejectedOrders, pendingOrders, ingredients, activeUsers, unreadNotifications, performanceApplied, performanceApproved, leaveCount] = await Promise.all([
     prisma.purchaseOrder.count({ where: orderWhere }),
     prisma.purchaseOrder.count({ where: { ...orderWhere, status: "approved" } }),
     prisma.purchaseOrder.count({ where: { ...orderWhere, status: "rejected" } }),
     prisma.purchaseOrder.count({ where: { ...orderWhere, status: "pending" } }),
     prisma.ingredient.count(),
-    prisma.user.count({ where: req.user.username === "000" ? { status: "active" } : { status: "active", storeId: req.user.storeId } }),
+    prisma.user.count({ where: { status: "active", ...userWhere } }),
     prisma.notification.count({ where: { OR: [{ recipientId: req.user.id }, { recipientId: null }], read: false } }),
     prisma.performanceRecord.count({ where: recordWhere }),
     prisma.performanceRecord.count({ where: { ...recordWhere, status: "approved" } }),
@@ -191,7 +219,8 @@ app.get("/api/performance/my", requireAuth, async (req, res) => {
 });
 
 app.get("/api/performance/all", requireAuth, async (req, res) => {
-  const where = req.user.username === "000" ? {} : { storeId: req.user.storeId };
+  const scope = await getAccessScope(req.user);
+  const where = scopedStoreWhere(scope);
   const records = await prisma.performanceRecord.findMany({
     where,
     include: { user: true },
@@ -202,7 +231,8 @@ app.get("/api/performance/all", requireAuth, async (req, res) => {
 });
 
 app.get("/api/performance/ranking", requireAuth, async (req, res) => {
-  const where = req.user.username === "000" ? { status: "approved" } : { status: "approved", storeId: req.user.storeId };
+  const scope = await getAccessScope(req.user);
+  const where = { status: "approved", ...scopedStoreWhere(scope) };
   const records = await prisma.performanceRecord.findMany({ where, include: { user: true } });
   const grouped = new Map();
   for (const record of records) {
@@ -214,7 +244,8 @@ app.get("/api/performance/ranking", requireAuth, async (req, res) => {
 });
 
 app.get("/api/performance/pending", requireAuth, async (req, res) => {
-  const where = req.user.username === "000" ? { status: "pending" } : { status: "pending", storeId: req.user.storeId };
+  const scope = await getAccessScope(req.user);
+  const where = { status: "pending", ...scopedStoreWhere(scope) };
   const records = await prisma.performanceRecord.findMany({ where, include: { user: true }, orderBy: { createdAt: "desc" } });
   res.json(ok(records.map((item) => ({ ...item, user: toUser(item.user), createdAt: item.createdAt.toISOString() }))));
 });
@@ -241,7 +272,8 @@ app.post("/api/performance/records", requireAuth, async (req, res) => {
 });
 
 app.get("/api/schedule/monthly", requireAuth, async (req, res) => {
-  const where = req.user.username === "000" ? {} : { storeId: req.user.storeId };
+  const scope = await getAccessScope(req.user);
+  const where = scopedStoreWhere(scope);
   const records = await prisma.scheduleRecord.findMany({
     where,
     include: { user: true },
@@ -252,8 +284,9 @@ app.get("/api/schedule/monthly", requireAuth, async (req, res) => {
 });
 
 app.get("/api/schedule/attendance", requireAuth, async (req, res) => {
-  const activeUsers = await prisma.user.count({ where: req.user.username === "000" ? { status: "active" } : { status: "active", storeId: req.user.storeId } });
-  const onLeave = await prisma.scheduleRecord.count({ where: req.user.username === "000" ? { type: "休假" } : { type: "休假", storeId: req.user.storeId } });
+  const scope = await getAccessScope(req.user);
+  const activeUsers = await prisma.user.count({ where: { status: "active", ...scopedUserWhere(scope) } });
+  const onLeave = await prisma.scheduleRecord.count({ where: { type: "休假", ...scopedStoreWhere(scope) } });
   res.json(ok({ onDuty: Math.max(activeUsers - onLeave, 0), onLeave }));
 });
 
@@ -366,8 +399,10 @@ app.post("/api/purchase/menu/upload", requireAuth, async (req, res) => {
 
 app.get("/api/purchase/orders", async (req, res) => {
   const status = req.query.status ? String(req.query.status) : undefined;
+  const scope = await getAccessScope(req.user);
+  const scopeWhere = scopedStoreWhere(scope);
   const orders = await prisma.purchaseOrder.findMany({
-    where: status ? { status } : undefined,
+    where: status ? { status, ...scopeWhere } : scopeWhere,
     include: { items: true, user: true },
     orderBy: { createdAt: "desc" },
   });
@@ -438,13 +473,16 @@ app.put("/api/purchase/orders/:id", requireAuth, async (req, res) => {
   res.json(ok({ ...order, user: toUser(order.user), createdAt: order.createdAt.toISOString() }));
 });
 
-app.get("/api/admin/registrations", requireAuth, async (_req, res) => {
-  const list = await prisma.registration.findMany({ orderBy: { createdAt: "desc" } });
+app.get("/api/admin/registrations", requireAuth, async (req, res) => {
+  const scope = await getAccessScope(req.user);
+  const list = await prisma.registration.findMany({ where: scopedStoreWhere(scope), orderBy: { createdAt: "desc" } });
   res.json(ok(list));
 });
 
-app.get("/api/admin/users", requireAuth, async (_req, res) => {
+app.get("/api/admin/users", requireAuth, async (req, res) => {
+  const scope = await getAccessScope(req.user);
   const users = await prisma.user.findMany({
+    where: scopedUserWhere(scope),
     include: {
       store: true,
       department: true,
