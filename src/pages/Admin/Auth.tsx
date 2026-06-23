@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type React from "react";
-import { Toast } from "antd-mobile";
+import { Dialog, Toast } from "antd-mobile";
 import { Store, Trash2, Users } from "lucide-react";
 import { pageStyle, containerStyle, PageTitle, SaaSCard, SaaSTab, ListItem, StatusBadge, SaaSButton, EmptyState } from "../../components/saas";
 import {
@@ -68,10 +68,7 @@ export default function AdminAuth() {
   const storeOptions = useMemo(() => stores.filter((store) => store.id !== selectedUser?.storeId), [stores, selectedUser]);
 
   const createDepartmentAuth = async () => {
-    if (!userId || !departmentId) {
-      Toast.show({ content: "请选择员工和目标部门" });
-      return;
-    }
+    if (!userId || !departmentId) return Toast.show({ content: "请选择员工和目标部门" });
     const result = await createCrossDepartmentAuthorization({ userId, targetId: departmentId });
     if (result.code === 0) {
       Toast.show({ content: "跨部门授权已创建", icon: "success" });
@@ -80,10 +77,7 @@ export default function AdminAuth() {
   };
 
   const createStoreAuth = async () => {
-    if (!userId || !storeId) {
-      Toast.show({ content: "请选择员工和目标门店" });
-      return;
-    }
+    if (!userId || !storeId) return Toast.show({ content: "请选择员工和目标门店" });
     const result = await createCrossStoreAuthorization({ userId, targetId: storeId });
     if (result.code === 0) {
       Toast.show({ content: "跨门店授权已创建", icon: "success" });
@@ -92,7 +86,8 @@ export default function AdminAuth() {
   };
 
   const deleteAuth = async (id: string, type: "department" | "store") => {
-    if (!confirm("确认取消该授权？")) return;
+    const confirmed = await Dialog.confirm({ content: "确认取消该授权？" });
+    if (!confirmed) return;
     const result = type === "department" ? await deleteCrossDepartmentAuthorization(id) : await deleteCrossStoreAuthorization(id);
     if (result.code === 0) {
       Toast.show({ content: "授权已取消", icon: "success" });
@@ -145,10 +140,11 @@ function FormSelect({ label, value, onChange, options }: { label: string; value:
 }
 
 function AuthList({ records, type, onDelete, emptyText }: { records: AuthRecord[]; type: "department" | "store"; onDelete: (id: string, type: "department" | "store") => void; emptyText: string }) {
+  const safeRecords = Array.isArray(records) ? records : [];
   return (
     <SaaSCard style={{ padding: 0, overflow: "hidden" }}>
       <div style={sectionHeaderStyle}>授权列表</div>
-      {records.length === 0 ? <EmptyState icon="🔐" text={emptyText} /> : records.map((record) => (
+      {safeRecords.length === 0 ? <EmptyState icon="🔐" text={emptyText} /> : safeRecords.map((record) => (
         <ListItem
           key={record.id}
           title={record.user?.realName || record.userId}

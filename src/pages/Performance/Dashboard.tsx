@@ -65,15 +65,10 @@ export default function PerformanceDashboard() {
   }, [myTotal]);
 
   const handleCreate = async () => {
-    if (!title.trim()) {
-      Toast.show({ content: "请填写绩效事项" });
-      return;
-    }
+    if (!title.trim()) return Toast.show({ content: "请填写绩效事项" });
     const parsedPoints = Number(points);
-    if (!Number.isFinite(parsedPoints)) {
-      Toast.show({ content: "积分格式不正确" });
-      return;
-    }
+    if (!Number.isFinite(parsedPoints)) return Toast.show({ content: "积分格式不正确" });
+
     setLoading(true);
     try {
       const result = await createPerformanceRecord({ title: title.trim(), type, points: parsedPoints, remark });
@@ -161,9 +156,10 @@ export default function PerformanceDashboard() {
 }
 
 function RecordList({ records, showUser, emptyText, pending }: { records: PerformanceRecord[]; showUser?: boolean; emptyText: string; pending?: boolean }) {
+  const safeRecords = Array.isArray(records) ? records : [];
   return (
     <SaaSCard style={{ padding: 0, overflow: "hidden" }}>
-      {records.length === 0 ? <EmptyState icon="📋" text={emptyText} /> : records.map((record) => {
+      {safeRecords.length === 0 ? <EmptyState icon="📋" text={emptyText} /> : safeRecords.map((record) => {
         const valueStyle = record.points >= 0 ? scorePlus : scoreMinus;
         const statusType = record.status === "approved" ? "success" : record.status === "rejected" ? "danger" : "warning";
         const userName = showUser ? `${record.user?.realName || "未命名员工"} · ` : "";

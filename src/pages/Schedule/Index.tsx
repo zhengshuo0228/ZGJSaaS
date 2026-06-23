@@ -39,10 +39,7 @@ export default function SchedulePage() {
   }, []);
 
   const handleCreate = async () => {
-    if (!date) {
-      Toast.show({ content: "请选择日期" });
-      return;
-    }
+    if (!date) return Toast.show({ content: "请选择日期" });
     setLoading(true);
     try {
       const result = await createScheduleRecord({ date, type, remark });
@@ -120,10 +117,11 @@ function ScheduleList({ records, emptyText }: { records: ScheduleRecord[]; empty
 }
 
 function ScheduleListInner({ records, emptyText }: { records: ScheduleRecord[]; emptyText: string }) {
-  if (records.length === 0) return <EmptyState icon="📅" text={emptyText} />;
+  const safeRecords = Array.isArray(records) ? records : [];
+  if (safeRecords.length === 0) return <EmptyState icon="📅" text={emptyText} />;
   return (
     <>
-      {records.map((record) => {
+      {safeRecords.map((record) => {
         const badgeType = record.type === "休假" || record.type === "病假" || record.type === "事假" ? "info" : "success";
         return (
           <ListItem
