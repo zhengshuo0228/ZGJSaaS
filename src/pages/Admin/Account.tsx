@@ -96,10 +96,10 @@ export default function AdminAccount() {
     try {
       const result = await createAdminUser({ username: form.username, password: form.password, realName: form.realName, storeId: form.storeId, departmentId: form.departmentId, positionIds: [form.positionId] });
       if (result.code === 0) {
-        Toast.show({ content: "账号创建成功", icon: "success" });
+        Toast.show({ content: "账号创建成功，已加入账号列表", icon: "success" });
         setForm((current) => ({ ...emptyForm, storeId: current.storeId, departmentId: current.departmentId }));
-        setTab("账号列表");
         await reload();
+        setTab("账号列表");
       }
     } catch (error: any) {
       Toast.show({ content: error?.response?.data?.message || "账号创建失败" });
@@ -168,7 +168,7 @@ export default function AdminAccount() {
         )}
 
         {tab === "注册审批" && (
-          <EntryCard title="注册审批" subtitle="处理首页提交的注册申请，通过后员工即可登录。" button="打开注册审批" onClick={() => navigate("/admin/registration")} />
+          <EntryCard title="注册审批" subtitle="处理首页提交的注册申请；审批通过后会自动进入账号列表。" button="打开注册审批" onClick={() => navigate("/admin/registration")} />
         )}
 
         {tab === "授权管理" && (

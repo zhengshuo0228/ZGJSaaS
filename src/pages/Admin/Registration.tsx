@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type React from "react";
 import { useNavigate } from "react-router-dom";
-import { Toast } from "antd-mobile";
+import type React from "react";
+import { Dialog, Toast } from "antd-mobile";
 import { ChevronRight } from "lucide-react";
 import { pageStyle, containerStyle, PageTitle, SaaSCard, ListItem, StatusBadge, EmptyState } from "../../components/saas";
 import { approveRegistration, getDepartments, getPositions, getRegistrations, getStores } from "../../api/mockApi";
@@ -51,11 +51,16 @@ export default function AdminRegistration() {
   }), [stores, departments, positions]);
 
   const handleApprove = async (id: string, approved: boolean) => {
-    if (!confirm(approved ? "确认通过该注册申请？" : "确认驳回该注册申请？")) return;
+    const confirmed = await Dialog.confirm({ content: approved ? "确认通过该注册申请？" : "确认驳回该注册申请？" });
+    if (!confirmed) return;
     try {
       const result = await approveRegistration(id, approved);
       if (result.code === 0) {
-        Toast.show({ content: approved ? "已通过，账号现在可以登录" : "已驳回", icon: "success" });
+        Toast.show({ content: approved ? "已通过，账号已加入账号列表" : "已驳回", icon: "success" });
+        if (approved) {
+          navigate("/admin/account");
+          return;
+        }
         await reload();
       }
     } catch (error: any) {
@@ -69,7 +74,7 @@ export default function AdminRegistration() {
   return (
     <div style={pageStyle}>
       <div style={containerStyle}>
-        <PageTitle title="注册审批" subtitle="审批首页注册账号申请，通过后员工即可登录。" />
+        <PageTitle title="注册审批" subtitle="审批首页注册账号申请，通过后员工即可登录，并显示在账号列表。" />
         {loading ? <SaaSCard>加载中...</SaaSCard> : null}
         {!loading && pendingList.length === 0 ? <SaaSCard><EmptyState icon="👤" text="暂无待审批注册申请" /></SaaSCard> : null}
         {!loading && pendingList.map((registration) => renderRegistration(registration, maps, handleApprove))}
