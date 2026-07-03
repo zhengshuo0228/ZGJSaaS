@@ -288,17 +288,16 @@ export default function WatermarkAlbumScreen() {
 
       // Step2：批量查 profiles（独立查询，避免关联失败），取 display_name + position
       const userIds = [...new Set(rows.map((r: Record<string, unknown>) => r.user_id as string).filter(Boolean))];
-      const profileMap = new Map<string, { display_name: string; position: string | null; avatar_url: string | null }>();
+      const profileMap = new Map<string, { display_name: string; position: string | null }>();
       if (userIds.length > 0) {
         const { data: pData } = await supabase
           .from('profiles')
-          .select('id, display_name, position, avatar_url')
+          .select('id, display_name, position')
           .in('id', userIds);
         (pData || []).forEach((p: Record<string, unknown>) => {
           profileMap.set(p.id as string, {
             display_name: (p.display_name as string) || '用户',
             position:     (p.position as string) || null,
-            avatar_url:   (p.avatar_url as string) || null,
           });
         });
       }
@@ -316,7 +315,7 @@ export default function WatermarkAlbumScreen() {
           user_id:          r.user_id as string,
           uploader_name:    prof?.display_name || '用户',
           uploader_position: prof?.position || null,
-          uploader_avatar:  prof?.avatar_url || null,
+          uploader_avatar:  null,
           media:            sortedMedia,
           like_count:       likes.length,
           comment_count:    comms.length,
@@ -664,15 +663,10 @@ export default function WatermarkAlbumScreen() {
 
           {/* 内容区 */}
           <View style={{ flex: 1 }}>
-            {/* 姓名 + 岗位 */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-              <Text style={{ fontSize: 15, fontWeight: '600', color: '#4A6CF7' }}>{item.uploader_name}</Text>
-              {!!item.uploader_position && (
-                <View style={{ backgroundColor: '#F0F0FF', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: 11, color: '#7C5CBF', fontWeight: '500' }}>{item.uploader_position}</Text>
-                </View>
-              )}
-            </View>
+            {/* 姓名 · 岗位 */}
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#4A6CF7', marginBottom: 4 }}>
+              {item.uploader_position ? `${item.uploader_name} · ${item.uploader_position}` : item.uploader_name}
+            </Text>
             {!!item.remark && (
               <Text style={{ fontSize: 14, color: '#1F2937', lineHeight: 20, marginBottom: 8 }}>{item.remark}</Text>
             )}
