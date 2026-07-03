@@ -75,21 +75,40 @@ export default function WatermarkPhotoDetailScreen() {
     loadedId.current = idStr;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from('watermark_photos')
-        .select('id, photo_url, media_type, remark, taken_at, profiles(display_name)')
+      const { data: postMedia } = await supabase
+        .from('watermark_post_media')
+        .select('id, photo_url, media_type, watermark_posts(remark, taken_at, profiles(display_name))')
         .eq('id', idStr)
         .maybeSingle();
-      if (data) {
-        const p = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+
+      if (postMedia) {
+        const post = Array.isArray(postMedia.watermark_posts) ? postMedia.watermark_posts[0] : postMedia.watermark_posts;
+        const p = Array.isArray(post?.profiles) ? post.profiles[0] : post?.profiles;
         setMedia({
-          id: data.id,
-          photo_url: data.photo_url,
-          media_type: (data.media_type as 'image' | 'video') || 'image',
-          remark: data.remark,
-          taken_at: data.taken_at,
+          id: postMedia.id,
+          photo_url: postMedia.photo_url,
+          media_type: (postMedia.media_type as 'image' | 'video') || 'image',
+          remark: post?.remark ?? null,
+          taken_at: post?.taken_at ?? new Date().toISOString(),
           uploader_name: (p as { display_name?: string })?.display_name ?? '未知',
         });
+      } else {
+        const { data } = await supabase
+          .from('watermark_photos')
+          .select('id, photo_url, media_type, remark, taken_at, profiles(display_name)')
+          .eq('id', idStr)
+          .maybeSingle();
+        if (data) {
+          const p = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles;
+          setMedia({
+            id: data.id,
+            photo_url: data.photo_url,
+            media_type: (data.media_type as 'image' | 'video') || 'image',
+            remark: data.remark,
+            taken_at: data.taken_at,
+            uploader_name: (p as { display_name?: string })?.display_name ?? '未知',
+          });
+        }
       }
       setLoading(false);
     })();

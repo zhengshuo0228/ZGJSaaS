@@ -98,6 +98,11 @@ function timeAgo(iso: string) {
   const p = (n: number) => n < 10 ? `0${n}` : `${n}`;
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
 }
+function formatDateTime(iso: string) {
+  const dt = new Date(iso);
+  const p = (n: number) => n < 10 ? `0${n}` : `${n}`;
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`;
+}
 function getInitial(name: string) { return (name || '?')[0].toUpperCase(); }
 const AVATAR_COLORS = ['#FFA07A', '#AC88FF', '#22D9AE', '#67D6CA', '#E6A1FF', '#DDADD1'];
 function avatarColor(name: string) {
@@ -119,44 +124,6 @@ function MediaGrid({ media, onPress }: { media: PostMedia[]; onPress: (m: PostMe
 
   if (count === 0) return null;
 
-  // 单张：大图
-  if (count === 1) {
-    const m = displayed[0];
-    const size = Math.min(contentW, 200);
-    return (
-      <Pressable onPress={() => onPress(m)} style={{ width: size, height: size, borderRadius: 8, overflow: 'hidden', marginBottom: 8 }} className="active:opacity-90">
-        <Image source={{ uri: m.photo_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-        {m.media_type === 'video' && (
-          <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' }}>
-            <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.9)', alignItems: 'center', justifyContent: 'center' }}>
-              <Play size={16} color="#1F2937" fill="#1F2937" />
-            </View>
-          </View>
-        )}
-      </Pressable>
-    );
-  }
-
-  // 2张：2列
-  if (count === 2) {
-    const cellSize = (contentW - 4) / 2;
-    return (
-      <View style={{ flexDirection: 'row', gap: 4, marginBottom: 8 }}>
-        {displayed.map(m => (
-          <Pressable key={m.id} onPress={() => onPress(m)} style={{ width: cellSize, height: cellSize, borderRadius: 6, overflow: 'hidden' }} className="active:opacity-90">
-            <Image source={{ uri: m.photo_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-            {m.media_type === 'video' && (
-              <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' }}>
-                <Play size={14} color="#fff" fill="#fff" />
-              </View>
-            )}
-          </Pressable>
-        ))}
-      </View>
-    );
-  }
-
-  // 3-9张：3列网格
   const cols = 3;
   const cellSize = (contentW - 4 * (cols - 1)) / cols;
   const rows: PostMedia[][] = [];
@@ -170,11 +137,15 @@ function MediaGrid({ media, onPress }: { media: PostMedia[]; onPress: (m: PostMe
             const isLast = ri === rows.length - 1 && ci === row.length - 1 && extra > 0;
             return (
               <Pressable key={m.id} onPress={() => onPress(m)} style={{ width: cellSize, height: cellSize, borderRadius: 6, overflow: 'hidden' }} className="active:opacity-90">
-                <Image source={{ uri: m.photo_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
-                {m.media_type === 'video' && !isLast && (
-                  <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.25)' }}>
-                    <Play size={12} color="#fff" fill="#fff" />
+                {m.media_type === 'video' ? (
+                  <View style={{ width: '100%', height: '100%', backgroundColor: '#111827', alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.92)', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                      <Play size={15} color="#111827" fill="#111827" />
+                    </View>
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>视频</Text>
                   </View>
+                ) : (
+                  <Image source={{ uri: m.photo_url }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
                 )}
                 {isLast && (
                   <View style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center' }}>
@@ -259,7 +230,7 @@ export default function WatermarkAlbumScreen() {
     }
   };
 
-  const fetchItems = useCallback(async (pageNum: number, refresh = false, overrideUid?: string | null) => {
+  const fetchItems = useCallback(async (pageNum: number, refresh = false, overrideUid?: string | null, uploaderUid?: string | null) => {
     if (refresh) setRefreshing(true); else setLoading(pageNum === 0);
     const from = pageNum * PAGE_SIZE;
     const to   = from + PAGE_SIZE - 1;
@@ -278,7 +249,8 @@ export default function WatermarkAlbumScreen() {
         `)
         .order('taken_at', { ascending: false })
         .range(from, to);
-      if (selectedUploader) query = query.eq('user_id', selectedUploader);
+      const activeUploader = uploaderUid !== undefined ? uploaderUid : selectedUploader;
+      if (activeUploader) query = query.eq('user_id', activeUploader);
       if (search.trim()) query = query.ilike('remark', `%${search.trim()}%`);
 
       const { data, error } = await query;
@@ -349,7 +321,7 @@ export default function WatermarkAlbumScreen() {
   };
   const handleRefresh        = () => { setPage(0); fetchItems(0, true); };
   const handleSearch         = () => { setPage(0); fetchItems(0, true); };
-  const handleSelectUploader = (uid: string | null) => { setSelectedUploader(uid); setShowFilter(false); setPage(0); fetchItems(0, true); };
+  const handleSelectUploader = (uid: string | null) => { setSelectedUploader(uid); setShowFilter(false); setPage(0); fetchItems(0, true, undefined, uid); };
 
   // ─── 点赞（乐观更新 + 推送通知）────────────────────────────────────────────
   const handleLike = async (item: PostItem) => {
@@ -664,9 +636,11 @@ export default function WatermarkAlbumScreen() {
           {/* 内容区 */}
           <View style={{ flex: 1 }}>
             {/* 姓名 · 岗位 */}
-            <Text style={{ fontSize: 15, fontWeight: '600', color: '#4A6CF7', marginBottom: 4 }}>
-              {item.uploader_position ? `${item.uploader_name} · ${item.uploader_position}` : item.uploader_name}
-            </Text>
+            <Pressable onPress={() => handleSelectUploader(item.user_id)} hitSlop={8} className="active:opacity-70">
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#4A6CF7', marginBottom: 4 }}>
+                {item.uploader_position ? `${item.uploader_name} · ${item.uploader_position}` : item.uploader_name}
+              </Text>
+            </Pressable>
             {!!item.remark && (
               <Text style={{ fontSize: 14, color: '#1F2937', lineHeight: 20, marginBottom: 8 }}>{item.remark}</Text>
             )}
@@ -678,7 +652,7 @@ export default function WatermarkAlbumScreen() {
             )}
             {/* 时间 + 互动 */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-              <Text style={{ fontSize: 12, color: '#9CA3AF' }}>{timeAgo(item.taken_at)}</Text>
+              <Text style={{ fontSize: 12, color: '#9CA3AF' }}>{formatDateTime(item.taken_at)}</Text>
               {!multiMode && (
                 <View style={{ flexDirection: 'row', gap: 16 }}>
                   <Pressable onPress={() => handleLike(item)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }} className="active:opacity-70">

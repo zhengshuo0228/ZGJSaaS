@@ -650,8 +650,9 @@ export default function WatermarkCameraScreen() {
   // ─── 单项上传（处理水印合成）────────────────────────────────────────────────
   const uploadOneItem = async (item: CapturedItem, lines: string[]): Promise<string> => {
     const isVideo = item.type === 'video';
-    const ext = isVideo ? 'mp4' : 'jpg';
-    const contentType = isVideo ? 'video/mp4' : 'image/jpeg';
+    const videoType = item.file?.type || (item.uri.toLowerCase().includes('.webm') ? 'video/webm' : 'video/mp4');
+    const ext = isVideo ? (videoType.includes('webm') ? 'webm' : 'mp4') : 'jpg';
+    const contentType = isVideo ? videoType : 'image/jpeg';
     const fileName = `wm-${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
     const storagePath = `${isVideo ? 'videos' : 'images'}/${fileName}`;
     let arrayBuffer: ArrayBuffer;
