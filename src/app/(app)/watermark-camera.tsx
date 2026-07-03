@@ -37,7 +37,6 @@ import {
   Settings,
   SwitchCamera,
   Trash2,
-  Users,
   Video,
   X,
 } from 'lucide-react-native';
@@ -153,9 +152,24 @@ function drawWatermarkOnCanvas(
   else if (position === 'center-bottom') { bx = (W - boxW) / 2; by = H - totalH; }
   else if (position === 'custom')        { bx = customX * W; by = customY * H; }
   else { bx = 0; by = H - totalH; }
-  ctx.fillStyle = 'rgba(0,0,0,0.52)';
+  ctx.fillStyle = 'rgba(15,23,42,0.58)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+  ctx.lineWidth = Math.max(1, Math.round(W * 0.0015));
+  const radius = Math.max(12, Math.round(fontSize * 0.75));
+  const drawRoundRect = (x: number, y: number, w: number, h: number, r: number) => {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
   if (position === 'full') ctx.fillRect(0, H - totalH, W, totalH);
-  else ctx.fillRect(bx, by, boxW, totalH);
+  else drawRoundRect(bx, by, boxW, totalH, radius);
   ctx.fillStyle = '#FFFFFF';
   ctx.font = `${fontSize}px -apple-system, sans-serif`;
   ctx.textBaseline = 'middle';
@@ -195,8 +209,16 @@ async function composeOnWeb(
 
 function getWatermarkStyle(position: WatermarkPosition, customX: number, customY: number): Record<string, unknown> {
   const base: Record<string, unknown> = {
-    position: 'absolute', backgroundColor: 'rgba(0,0,0,0.52)',
-    borderRadius: 8, padding: 10, gap: 3, maxWidth: '70%',
+    position: 'absolute',
+    backgroundColor: 'rgba(15,23,42,0.58)',
+    borderColor: 'rgba(255,255,255,0.24)',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 2,
+    maxWidth: '72%',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
   };
   if (position === 'top-left')      return { ...base, top: 20, left: 16 };
   if (position === 'top-right')     return { ...base, top: 20, right: 16 };
@@ -809,17 +831,17 @@ export default function WatermarkCameraScreen() {
 
   // ─── 相机取景框 ───────────────────────────────────────────────────────────────
   return (
-    <View className="flex-1 bg-black">
-      <StatusBar style="light" />
+    <View className="flex-1" style={{ backgroundColor: '#FFFFFF' }}>
+      <StatusBar style="dark" />
 
       {/* 顶部导航（去掉拍照/录像切换 tab，统一用短按拍照 / 长按录像） */}
-      <SafeAreaView edges={['top']}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10 }}>
-          <Pressable onPress={() => router.back()} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }} className="active:opacity-60">
-            <ArrowLeft size={20} color="#fff" />
+      <SafeAreaView edges={['top']} style={{ backgroundColor: '#FFFFFF' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#EEF2F7' }}>
+          <Pressable onPress={() => router.back()} style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#F3F6FA', alignItems: 'center', justifyContent: 'center' }} className="active:opacity-60">
+            <ArrowLeft size={22} color="#1F2937" />
           </Pressable>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>水印相机</Text>
-          <View style={{ width: 38 }} />
+          <Text style={{ color: '#111827', fontSize: 18, fontWeight: '800' }}>水印相机</Text>
+          <View style={{ width: 44 }} />
         </View>
       </SafeAreaView>
 
@@ -916,29 +938,29 @@ export default function WatermarkCameraScreen() {
       </View>
 
       {/* 底部快门区 */}
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#000' }}>
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#EEF2F7' }}>
         {/* 消息提示 */}
         {(successMsg || errMsg || saveProgress) ? (
           <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
-            <View style={{ backgroundColor: successMsg ? 'rgba(22,163,74,0.15)' : errMsg ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.1)', borderRadius: 10, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ backgroundColor: successMsg ? 'rgba(22,163,74,0.12)' : errMsg ? 'rgba(239,68,68,0.12)' : '#F3F6FA', borderRadius: 12, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               {successMsg && <CheckCircle size={16} color="#16A34A" />}
-              <Text style={{ color: successMsg ? '#16A34A' : errMsg ? '#EF4444' : '#fff', fontSize: 13, flex: 1 }}>{successMsg || errMsg || saveProgress}</Text>
+              <Text style={{ color: successMsg ? '#16A34A' : errMsg ? '#EF4444' : '#334155', fontSize: 13, flex: 1 }}>{successMsg || errMsg || saveProgress}</Text>
             </View>
           </View>
         ) : null}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 20, gap: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 18, paddingBottom: 22, gap: 0 }}>
           {/* 左：功能按钮（图库、设置、翻转） */}
           <View style={{ flex: 1, flexDirection: 'row', gap: 16, alignItems: 'center' }}>
-            <Pressable onPress={handlePickFromLibrary} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }} className="active:opacity-60">
-              <Images size={20} color="#fff" />
+            <Pressable onPress={handlePickFromLibrary} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: '#F3F6FA', alignItems: 'center', justifyContent: 'center' }} className="active:opacity-60">
+              <Images size={21} color="#334155" />
             </Pressable>
-            <Pressable onPress={() => { setTempConfig({ ...wConfig }); setShowSettings(true); }} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }} className="active:opacity-60">
-              <Settings size={20} color="#fff" />
+            <Pressable onPress={() => { setTempConfig({ ...wConfig }); setShowSettings(true); }} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: '#F3F6FA', alignItems: 'center', justifyContent: 'center' }} className="active:opacity-60">
+              <Settings size={21} color="#334155" />
             </Pressable>
             {!isWeb && (
-              <Pressable onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')} style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }} className="active:opacity-60">
-                <SwitchCamera size={20} color="#fff" />
+              <Pressable onPress={() => setFacing(f => f === 'back' ? 'front' : 'back')} style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: '#F3F6FA', alignItems: 'center', justifyContent: 'center' }} className="active:opacity-60">
+                <SwitchCamera size={21} color="#334155" />
               </Pressable>
             )}
           </View>
@@ -950,9 +972,10 @@ export default function WatermarkCameraScreen() {
             onPressOut={handleShutterPressOut}
             style={{
               width: 72, height: 72, borderRadius: 36,
-              backgroundColor: recording ? '#EF4444' : '#fff',
-              borderWidth: 4, borderColor: recording ? '#EF4444' : 'rgba(255,255,255,0.5)',
+              backgroundColor: recording ? '#EF4444' : '#FFFFFF',
+              borderWidth: 5, borderColor: recording ? '#FCA5A5' : '#E4ECF7',
               alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 24px rgba(15,23,42,0.16)',
             }}
             className="active:opacity-80"
           >
@@ -964,7 +987,7 @@ export default function WatermarkCameraScreen() {
           </Pressable>
           {/* 提示文字 */}
           {!recording && (
-            <Text style={{ position: 'absolute', bottom: -16, left: 0, right: 0, color: 'rgba(255,255,255,0.45)', fontSize: 10, textAlign: 'center' }}>
+            <Text style={{ position: 'absolute', bottom: 3, left: 0, right: 0, color: '#94A3B8', fontSize: 10, textAlign: 'center' }}>
               点按拍照 · 长按录像
             </Text>
           )}
@@ -990,10 +1013,17 @@ export default function WatermarkCameraScreen() {
             ) : (
               <Pressable
                 onPress={() => router.push('/(app)/watermark-album' as Parameters<typeof router.push>[0])}
-                style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}
+                style={{ width: 58, alignItems: 'center', justifyContent: 'center', gap: 4 }}
                 className="active:opacity-60"
               >
-                <Users size={22} color="#fff" />
+                <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: '#F3F6FA', alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 24, height: 24, position: 'relative' }}>
+                    <View style={{ position: 'absolute', left: 4, top: 3, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22D9AE' }} />
+                    <View style={{ position: 'absolute', right: 3, top: 7, width: 12, height: 12, borderRadius: 6, backgroundColor: '#67D6CA' }} />
+                    <View style={{ position: 'absolute', left: 7, bottom: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#AC88FF' }} />
+                  </View>
+                </View>
+                <Text style={{ color: '#334155', fontSize: 11, fontWeight: '600' }}>工作圈</Text>
               </Pressable>
             )}
           </View>
