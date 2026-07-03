@@ -1,0 +1,92 @@
+{
+  "expo": {
+    "name": "開小灶PMS",
+    "slug": "food-purchase-management",
+    "version": "1.0.169",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#DC0E23"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "buildNumber": "1",
+      "bundleIdentifier": "com.miaoda.appbwpk023a37r5"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#DC0E23"
+      },
+      "predictiveBackGestureEnabled": false,
+      "versionCode": 1,
+      "package": "com.miaoda.appbwpk023a37r5"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-asset",
+      "expo-sqlite",
+      "expo-font",
+      "expo-system-ui",
+      "@react-native-async-storage/expo-with-async-storage",
+      "expo-image",
+      "expo-sharing",
+      "expo-file-system",
+      "expo-document-picker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "允许 $(PRODUCT_NAME) 访问相机以使用水印拍照功能",
+          "microphonePermission": "允许 $(PRODUCT_NAME) 访问麦克风",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "允许 $(PRODUCT_NAME) 访问相机以拍摄绩效照片",
+          "photosPermission": "允许 $(PRODUCT_NAME) 访问相册以上传绩效证明图片"
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#2E9D6A",
+          "sounds": [],
+          "iosDisplayInForeground": true
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "允许開小灶访问相册以保存采购汇总图片",
+          "savePhotosPermission": "允许開小灶保存图片到相册"
+        }
+      ],
+      "expo-updates",
+      "expo-video"
+    ],
+    "router": {
+      "root": "src"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
+  }
+}
