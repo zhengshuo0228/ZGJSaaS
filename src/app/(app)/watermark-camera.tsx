@@ -25,6 +25,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { captureRef } from 'react-native-view-shot';
 import { fetch as expoFetch } from 'expo/fetch';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -78,6 +79,8 @@ interface WatermarkConfig {
   showDate: boolean;
   showUsername: boolean;
   showCompany: boolean;
+  showLocation: boolean;
+  locationText: string;
   remark: string;
   company: string;
   customX: number;
@@ -100,6 +103,8 @@ const DEFAULT_CONFIG: WatermarkConfig = {
   showDate: true,
   showUsername: true,
   showCompany: true,
+  showLocation: true,
+  locationText: '定位获取中…',
   remark: '',
   company: DEFAULT_COMPANY,
   customX: 0.05,
@@ -262,6 +267,7 @@ export default function WatermarkCameraScreen() {
   const [showSettings, setShowSettings] = useState(false);
   const [tempConfig, setTempConfig] = useState<WatermarkConfig>(DEFAULT_CONFIG);
   const [savingConfig, setSavingConfig] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   // 拖拽
   const dragRef = useRef({ startX: 0, startY: 0, startCX: 0, startCY: 0 });
@@ -348,6 +354,7 @@ export default function WatermarkCameraScreen() {
     if (cfg.showDate)     lines.push(getDateStr());
     if (cfg.showTime)     lines.push(getTimeStr());
     if (cfg.showUsername) lines.push(username);
+    if (cfg.showLocation) lines.push(`📍 ${cfg.locationText || '定位未开启'}`);
     if (cfg.remark.trim()) lines.push(cfg.remark.trim());
     return lines;
   }, [username]);
@@ -356,6 +363,58 @@ export default function WatermarkCameraScreen() {
     if (isErr) { setErrMsg(msg); setTimeout(() => setErrMsg(''), 3500); }
     else { setSuccessMsg(msg); setTimeout(() => setSuccessMsg(''), 3500); }
   };
+
+  const formatLocationAddress = (place?: Location.LocationGeocodedAddress) => {
+    if (!place) return '';
+    return [
+      place.city || place.region,
+      place.district || place.subregion,
+      place.street,
+      place.name,
+    ].filter(Boolean).join('');
+  };
+
+  const requestCurrentLocation = async (showToast = false) => {
+    if (locating) return;
+    setLocating(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') {
+        const text = '定位未开启';
+        setWConfig(c => ({ ...c, locationText: text }));
+        setTempConfig(c => ({ ...c, locationText: text }));
+        if (showToast) showMsg('定位权限未开启', true);
+        return;
+      }
+
+      const current = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = current.coords;
+      let text = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      try {
+        const places = await Location.reverseGeocodeAsync({ latitude, longitude });
+        text = formatLocationAddress(places[0]) || text;
+      } catch {
+        // 反查地址失败时保留经纬度
+      }
+
+      setWConfig(c => ({ ...c, locationText: text }));
+      setTempConfig(c => ({ ...c, locationText: text }));
+      if (showToast) showMsg('定位已更新');
+    } catch {
+      const text = '定位获取失败';
+      setWConfig(c => ({ ...c, locationText: text }));
+      setTempConfig(c => ({ ...c, locationText: text }));
+      if (showToast) showMsg('定位获取失败，请稍后重试', true);
+    } finally {
+      setLocating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (wConfig.showLocation && wConfig.locationText === DEFAULT_CONFIG.locationText) {
+      requestCurrentLocation(false);
+    }
+  }, []);
 
   useFocusEffect(useCallback(() => {
     (async () => {
@@ -1058,6 +1117,7 @@ export default function WatermarkCameraScreen() {
                     { key: 'showDate',    label: '显示日期' },
                     { key: 'showTime',    label: '显示时间' },
                     { key: 'showUsername', label: '显示用户名' },
+                    { key: 'showLocation', label: '显示定位' },
                   ].map(({ key, label }) => (
                     <View key={key} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Text style={{ color: '#fff', fontSize: 14 }}>{label}</Text>
@@ -1069,6 +1129,28 @@ export default function WatermarkCameraScreen() {
                       />
                     </View>
                   ))}
+
+                  {/* 定位 */}
+                  {tempConfig.showLocation && (
+                    <View style={{ gap: 8 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>定位地址</Text>
+                      <TextInput
+                        value={tempConfig.locationText}
+                        onChangeText={v => setTempConfig(c => ({ ...c, locationText: v }))}
+                        placeholder="自动定位或手动输入地址"
+                        placeholderTextColor="rgba(255,255,255,0.3)"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: '#fff', fontSize: 14 }}
+                      />
+                      <Pressable
+                        onPress={() => requestCurrentLocation(true)}
+                        disabled={locating}
+                        style={{ paddingVertical: 10, borderRadius: 10, backgroundColor: locating ? 'rgba(255,160,122,0.45)' : 'rgba(255,160,122,0.18)', alignItems: 'center' }}
+                        className="active:opacity-70"
+                      >
+                        <Text style={{ color: '#FFA07A', fontSize: 13, fontWeight: '700' }}>{locating ? '定位中…' : '重新定位'}</Text>
+                      </Pressable>
+                    </View>
+                  )}
 
                   {/* 备注 */}
                   <View style={{ gap: 8 }}>

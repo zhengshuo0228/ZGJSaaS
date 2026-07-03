@@ -71,6 +71,12 @@
           "savePhotosPermission": "允许開小灶保存图片到相册"
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "?? $(PRODUCT_NAME) ?????????????????"
+        }
+      ],
       "expo-updates",
       "expo-video"
     ],
