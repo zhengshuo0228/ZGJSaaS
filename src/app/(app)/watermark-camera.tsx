@@ -80,7 +80,11 @@ interface WatermarkConfig {
   showUsername: boolean;
   showCompany: boolean;
   showLocation: boolean;
+  showSlogan: boolean;
   locationText: string;
+  storeName: string;
+  weatherText: string;
+  slogan: string;
   remark: string;
   company: string;
   customX: number;
@@ -104,7 +108,11 @@ const DEFAULT_CONFIG: WatermarkConfig = {
   showUsername: true,
   showCompany: true,
   showLocation: true,
-  locationText: '定位获取中…',
+  showSlogan: true,
+  locationText: '上饶市信州区 · 五三花苑',
+  storeName: DEFAULT_COMPANY,
+  weatherText: '阴 25°C',
+  slogan: '专注地道美味 食品安全 健康饮食 流程合规',
   remark: '',
   company: DEFAULT_COMPANY,
   customX: 0.05,
@@ -129,8 +137,11 @@ function getTimeStr() {
 }
 function getDateStr() {
   const d = new Date();
-  const weeks = ['日', '一', '二', '三', '四', '五', '六'];
-  return `${d.getFullYear()}-${padTwo(d.getMonth() + 1)}-${padTwo(d.getDate())} 周${weeks[d.getDay()]}`;
+  return `${d.getFullYear()}-${padTwo(d.getMonth() + 1)}-${padTwo(d.getDate())}`;
+}
+function getWeekdayStr() {
+  const weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+  return weeks[new Date().getDay()];
 }
 
 // 通用水印绘制函数（在 canvas 上下文上绘制）
@@ -184,6 +195,103 @@ function drawWatermarkOnCanvas(
   });
 }
 
+function drawStyledWatermarkOnCanvas(
+  ctx: CanvasRenderingContext2D,
+  W: number,
+  H: number,
+  cfg: WatermarkConfig,
+  username: string,
+) {
+  const scale = Math.max(0.75, Math.min(1.35, W / 1280));
+  const timeFont = Math.round(64 * scale);
+  const dateFont = Math.round(30 * scale);
+  const placeFont = Math.round(28 * scale);
+  const sloganFont = Math.round(24 * scale);
+  const smallFont = Math.round(22 * scale);
+  const gap = Math.round(12 * scale);
+  const xPad = Math.round(28 * scale);
+  const yPad = Math.round(24 * scale);
+  const timeH = cfg.showTime ? timeFont * 1.08 : 0;
+  const metaH = (cfg.showDate || cfg.weatherText.trim()) ? dateFont * 2.1 : 0;
+  const storeLine = [
+    cfg.showCompany ? (cfg.storeName || cfg.company) : '',
+    cfg.showUsername ? username : '',
+  ].filter(Boolean).join(' · ');
+  const storeH = storeLine ? smallFont * 1.25 : 0;
+  const placeH = cfg.showLocation && cfg.locationText ? placeFont * 1.25 : 0;
+  const sloganH = cfg.showSlogan && cfg.slogan.trim() ? sloganFont * 1.55 : 0;
+  const remarkH = cfg.remark.trim() ? smallFont * 1.25 : 0;
+  const topH = Math.max(timeH, metaH);
+  const totalH = topH + storeH + placeH + sloganH + remarkH + gap * 3;
+  const totalW = Math.min(W - xPad * 2, Math.max(W * 0.56, (cfg.slogan.length || 16) * sloganFont * 0.8));
+
+  let bx = xPad;
+  let by = H - totalH - yPad;
+  const { position, customX, customY } = cfg;
+  if (position === 'top-left')      { bx = xPad; by = yPad; }
+  else if (position === 'top-right')     { bx = W - totalW - xPad; by = yPad; }
+  else if (position === 'bottom-left')   { bx = xPad; by = H - totalH - yPad; }
+  else if (position === 'bottom-right')  { bx = W - totalW - xPad; by = H - totalH - yPad; }
+  else if (position === 'center-bottom') { bx = (W - totalW) / 2; by = H - totalH - yPad; }
+  else if (position === 'full')          { bx = xPad; by = H - totalH - yPad; }
+  else if (position === 'custom')        { bx = customX * W; by = customY * H; }
+
+  ctx.save();
+  ctx.globalAlpha = cfg.textOpacity;
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = Math.round(8 * scale);
+  ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'top';
+
+  let y = by;
+  if (cfg.showTime) {
+    ctx.font = `900 ${timeFont}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.fillText(getTimeStr().slice(0, 5), bx, y);
+  }
+  if (cfg.showDate || cfg.weatherText.trim()) {
+    const rightX = bx + (cfg.showTime ? timeFont * 2.25 : 0);
+    if (cfg.showTime) {
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#F7B733';
+      ctx.fillRect(rightX - Math.round(18 * scale), y + Math.round(5 * scale), Math.round(5 * scale), Math.round(62 * scale));
+      ctx.shadowBlur = Math.round(8 * scale);
+      ctx.fillStyle = '#fff';
+    }
+    ctx.font = `900 ${dateFont}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    if (cfg.showDate) ctx.fillText(getDateStr(), rightX, y);
+    const meta = [getWeekdayStr(), cfg.weatherText.trim()].filter(Boolean).join('  ');
+    if (meta) ctx.fillText(meta, rightX, y + dateFont * 1.22);
+  }
+  y += topH + gap;
+
+  if (storeLine) {
+    ctx.font = `800 ${smallFont}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.fillText(storeLine, bx, y);
+    y += storeH;
+  }
+  if (cfg.showLocation && cfg.locationText) {
+    ctx.font = `800 ${placeFont}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.fillText(cfg.locationText, bx, y);
+    y += placeH + Math.round(6 * scale);
+  }
+  if (cfg.showSlogan && cfg.slogan.trim()) {
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(232,169,58,0.78)';
+    const sloganW = Math.min(totalW, cfg.slogan.trim().length * sloganFont * 0.95 + Math.round(22 * scale));
+    ctx.fillRect(bx, y, sloganW, sloganH);
+    ctx.fillStyle = '#fff';
+    ctx.font = `900 ${sloganFont}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.fillText(cfg.slogan.trim(), bx + Math.round(10 * scale), y + Math.round(6 * scale));
+    y += sloganH + gap;
+  }
+  if (cfg.remark.trim()) {
+    ctx.shadowBlur = Math.round(8 * scale);
+    ctx.font = `700 ${smallFont}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+    ctx.fillText(cfg.remark.trim(), bx, y);
+  }
+  ctx.restore();
+}
+
 // ─── Web Canvas 合成水印 ───────────────────────────────────────────────────────
 async function composeOnWeb(
   photoUri: string,
@@ -215,23 +323,65 @@ async function composeOnWeb(
 function getWatermarkStyle(position: WatermarkPosition, customX: number, customY: number): Record<string, unknown> {
   const base: Record<string, unknown> = {
     position: 'absolute',
-    backgroundColor: 'rgba(15,23,42,0.58)',
-    borderColor: 'rgba(255,255,255,0.24)',
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 2,
-    maxWidth: '72%',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+    gap: 8,
+    maxWidth: '92%',
+    minWidth: 250,
   };
   if (position === 'top-left')      return { ...base, top: 20, left: 16 };
   if (position === 'top-right')     return { ...base, top: 20, right: 16 };
   if (position === 'bottom-left')   return { ...base, bottom: 20, left: 16 };
   if (position === 'bottom-right')  return { ...base, bottom: 20, right: 16 };
-  if (position === 'center-bottom') return { ...base, bottom: 20, alignSelf: 'center', left: '15%', right: '15%', maxWidth: '70%' };
-  if (position === 'full')          return { ...base, bottom: 0, left: 0, right: 0, borderRadius: 0, maxWidth: '100%' };
+  if (position === 'center-bottom') return { ...base, bottom: 20, alignSelf: 'center', left: '8%', right: '8%', maxWidth: '84%' };
+  if (position === 'full')          return { ...base, bottom: 16, left: 16, right: 16, maxWidth: '100%' };
   return { ...base, top: `${customY * 100}%`, left: `${customX * 100}%` };
+}
+
+function WatermarkOverlay({ cfg, username, style }: { cfg: WatermarkConfig; username: string; style: Record<string, unknown> }) {
+  const meta = [getWeekdayStr(), cfg.weatherText.trim()].filter(Boolean).join('  ');
+  const storeLine = [
+    cfg.showCompany ? (cfg.storeName || cfg.company) : '',
+    cfg.showUsername ? username : '',
+  ].filter(Boolean).join(' · ');
+  return (
+    <View pointerEvents="none" style={style}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {cfg.showTime && (
+          <Text style={{ color: '#fff', fontSize: 44, lineHeight: 50, fontWeight: '900', letterSpacing: -1, textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 6 }}>
+            {getTimeStr().slice(0, 5)}
+          </Text>
+        )}
+        {(cfg.showDate || meta) && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: cfg.showTime ? 12 : 0 }}>
+            {cfg.showTime && <View style={{ width: 4, height: 50, borderRadius: 2, backgroundColor: '#F7B733', marginRight: 12 }} />}
+            <View style={{ gap: 4 }}>
+              {cfg.showDate && <Text style={{ color: '#fff', fontSize: 21, lineHeight: 25, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 5 }}>{getDateStr()}</Text>}
+              {!!meta && <Text style={{ color: '#fff', fontSize: 20, lineHeight: 24, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.45)', textShadowRadius: 5 }}>{meta}</Text>}
+            </View>
+          </View>
+        )}
+      </View>
+      {!!storeLine && (
+        <Text style={{ color: '#fff', fontSize: 15, lineHeight: 20, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 5 }}>
+          {storeLine}
+        </Text>
+      )}
+      {cfg.showLocation && !!cfg.locationText && (
+        <Text style={{ color: '#fff', fontSize: 19, lineHeight: 25, fontWeight: '800', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 5 }}>
+          {cfg.locationText}
+        </Text>
+      )}
+      {cfg.showSlogan && !!cfg.slogan.trim() && (
+        <View style={{ alignSelf: 'flex-start', backgroundColor: 'rgba(232,169,58,0.78)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5 }}>
+          <Text style={{ color: '#fff', fontSize: 16, lineHeight: 21, fontWeight: '900' }}>{cfg.slogan.trim()}</Text>
+        </View>
+      )}
+      {!!cfg.remark.trim() && (
+        <Text style={{ color: '#fff', fontSize: 14, lineHeight: 19, fontWeight: '700', textShadowColor: 'rgba(0,0,0,0.5)', textShadowRadius: 5 }}>
+          {cfg.remark.trim()}
+        </Text>
+      )}
+    </View>
+  );
 }
 
 export default function WatermarkCameraScreen() {
@@ -350,11 +500,12 @@ export default function WatermarkCameraScreen() {
 
   const buildWatermarkLines = useCallback((cfg: WatermarkConfig): string[] => {
     const lines: string[] = [];
-    if (cfg.showCompany)  lines.push(cfg.company || DEFAULT_COMPANY);
+    if (cfg.showCompany)  lines.push(cfg.storeName || cfg.company || DEFAULT_COMPANY);
     if (cfg.showDate)     lines.push(getDateStr());
     if (cfg.showTime)     lines.push(getTimeStr());
     if (cfg.showUsername) lines.push(username);
-    if (cfg.showLocation) lines.push(`📍 ${cfg.locationText || '定位未开启'}`);
+    if (cfg.showLocation) lines.push(cfg.locationText || DEFAULT_CONFIG.locationText);
+    if (cfg.showSlogan && cfg.slogan.trim()) lines.push(cfg.slogan.trim());
     if (cfg.remark.trim()) lines.push(cfg.remark.trim());
     return lines;
   }, [username]);
@@ -366,12 +517,10 @@ export default function WatermarkCameraScreen() {
 
   const formatLocationAddress = (place?: Location.LocationGeocodedAddress) => {
     if (!place) return '';
-    return [
-      place.city || place.region,
-      place.district || place.subregion,
-      place.street,
-      place.name,
-    ].filter(Boolean).join('');
+    const cityArea = [place.city || place.region, place.district || place.subregion].filter(Boolean).join('');
+    const detail = place.name || place.street || '';
+    if (cityArea && detail) return `${cityArea} · ${detail}`;
+    return cityArea || detail;
   };
 
   const requestCurrentLocation = async (showToast = false) => {
@@ -380,9 +529,6 @@ export default function WatermarkCameraScreen() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        const text = '定位未开启';
-        setWConfig(c => ({ ...c, locationText: text }));
-        setTempConfig(c => ({ ...c, locationText: text }));
         if (showToast) showMsg('定位权限未开启', true);
         return;
       }
@@ -401,9 +547,6 @@ export default function WatermarkCameraScreen() {
       setTempConfig(c => ({ ...c, locationText: text }));
       if (showToast) showMsg('定位已更新');
     } catch {
-      const text = '定位获取失败';
-      setWConfig(c => ({ ...c, locationText: text }));
-      setTempConfig(c => ({ ...c, locationText: text }));
       if (showToast) showMsg('定位获取失败，请稍后重试', true);
     } finally {
       setLocating(false);
@@ -422,11 +565,22 @@ export default function WatermarkCameraScreen() {
       if (!isWeb && requestPermission && !permission?.granted) {
         await requestPermission();
       }
-      // 加载企业名称配置
-      const { data } = await supabase.from('app_config').select('value').eq('key', 'watermark_company').maybeSingle();
-      if (data?.value) {
-        setWConfig(c => ({ ...c, company: data.value }));
-        setTempConfig(c => ({ ...c, company: data.value }));
+      // 加载水印配置
+      const { data } = await supabase
+        .from('app_config')
+        .select('key, value')
+        .in('key', ['watermark_company', 'watermark_store_name', 'watermark_weather', 'watermark_slogan', 'watermark_location']);
+      if (data?.length) {
+        const configMap = new Map((data as { key: string; value: string }[]).map(row => [row.key, row.value]));
+        const patch = {
+          company: configMap.get('watermark_company') || configMap.get('watermark_store_name') || DEFAULT_CONFIG.company,
+          storeName: configMap.get('watermark_store_name') || configMap.get('watermark_company') || DEFAULT_CONFIG.storeName,
+          weatherText: configMap.get('watermark_weather') || DEFAULT_CONFIG.weatherText,
+          slogan: configMap.get('watermark_slogan') || DEFAULT_CONFIG.slogan,
+          locationText: configMap.get('watermark_location') || DEFAULT_CONFIG.locationText,
+        };
+        setWConfig(c => ({ ...c, ...patch }));
+        setTempConfig(c => ({ ...c, ...patch }));
       }
     })();
   }, []));
@@ -438,7 +592,7 @@ export default function WatermarkCameraScreen() {
     canvas.height = video.videoHeight || video.clientHeight || 720;
     const ctx = canvas.getContext('2d')!;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    drawWatermarkOnCanvas(ctx, canvas.width, canvas.height, buildWatermarkLines(wConfig), wConfig.position, wConfig.customX, wConfig.customY);
+    drawStyledWatermarkOnCanvas(ctx, canvas.width, canvas.height, wConfig, username);
     return new Promise((resolve, reject) => {
       canvas.toBlob(
         (blob) => { if (blob) resolve(blob); else reject(new Error('截取帧失败')); },
@@ -451,34 +605,7 @@ export default function WatermarkCameraScreen() {
   const renderWatermarkToCanvas = useCallback((ctx: CanvasRenderingContext2D, W: number, H: number) => {
     const lines = buildWatermarkLines(wConfig);
     if (lines.length > 0) {
-      ctx.save();
-      ctx.globalAlpha = wConfig.textOpacity;
-      const fontSize = Math.max(20, Math.round(W * 0.028));
-      const lineH = fontSize * 1.6;
-      const padX = fontSize * 1.2;
-      const padY = fontSize * 0.8;
-      const totalH = lines.length * lineH + padY * 2;
-      const boxW = Math.min(W * 0.7, Math.max(...lines.map(l => l.length)) * fontSize * 0.62 + padX * 2);
-      let bx = 0, by = 0;
-      const { position, customX, customY } = wConfig;
-      if (position === 'top-left')      { bx = 0; by = 0; }
-      else if (position === 'top-right')     { bx = W - boxW; by = 0; }
-      else if (position === 'bottom-left')   { bx = 0; by = H - totalH; }
-      else if (position === 'bottom-right')  { bx = W - boxW; by = H - totalH; }
-      else if (position === 'center-bottom') { bx = (W - boxW) / 2; by = H - totalH; }
-      else if (position === 'custom')        { bx = customX * W; by = customY * H; }
-      else { bx = 0; by = H - totalH; }
-      ctx.fillStyle = 'rgba(0,0,0,0.52)';
-      if (position === 'full') ctx.fillRect(0, H - totalH, W, totalH);
-      else ctx.fillRect(bx, by, boxW, totalH);
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = `${fontSize}px -apple-system, sans-serif`;
-      ctx.textBaseline = 'middle';
-      lines.forEach((line, i) => {
-        const tx = (position === 'full') ? padX : bx + padX;
-        ctx.fillText(line, tx, by + padY + lineH * i + lineH / 2);
-      });
-      ctx.restore();
+      drawStyledWatermarkOnCanvas(ctx, W, H, wConfig, username);
     }
     // 图片水印
     if (wConfig.imageWatermark?.uri && webImageWatermarkRef.current?.complete) {
@@ -789,10 +916,15 @@ export default function WatermarkCameraScreen() {
   // ─── 保存水印设置 ─────────────────────────────────────────────────────────────
   const handleSaveConfig = async () => {
     setSavingConfig(true);
-    if (tempConfig.company !== wConfig.company) {
-      await supabase.from('app_config').upsert({ key: 'watermark_company', value: tempConfig.company }, { onConflict: 'key' });
-    }
-    setWConfig({ ...tempConfig });
+    const nextConfig = { ...tempConfig, company: tempConfig.storeName || tempConfig.company };
+    await supabase.from('app_config').upsert([
+      { key: 'watermark_company', value: nextConfig.company },
+      { key: 'watermark_store_name', value: nextConfig.storeName },
+      { key: 'watermark_weather', value: nextConfig.weatherText },
+      { key: 'watermark_slogan', value: nextConfig.slogan },
+      { key: 'watermark_location', value: nextConfig.locationText },
+    ], { onConflict: 'key' });
+    setWConfig(nextConfig);
     setSavingConfig(false);
     setShowSettings(false);
   };
@@ -864,11 +996,7 @@ export default function WatermarkCameraScreen() {
             <Image source={{ uri: previewItem.uri }} style={{ width: '100%', height: '100%' }} contentFit="contain" />
           )}
           {previewItem.type === 'image' && watermarkLines.length > 0 && (
-            <View style={wmStyle as Record<string, unknown>}>
-              {watermarkLines.map((line, i) => (
-                <Text key={i} style={{ color: '#fff', fontSize: 13, fontWeight: '500', lineHeight: 20 }}>{line}</Text>
-              ))}
-            </View>
+            <WatermarkOverlay cfg={wConfig} username={username} style={wmStyle} />
           )}
           {previewItem.type === 'video' && (
             <View style={{ position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -943,11 +1071,7 @@ export default function WatermarkCameraScreen() {
           </View>
         )}
         {watermarkLines.length > 0 && (
-          <View style={wmStyle as Record<string, unknown>}>
-            {watermarkLines.map((line, i) => (
-              <Text key={i} style={{ color: '#fff', fontSize: 12, fontWeight: '500', lineHeight: 18 }}>{line}</Text>
-            ))}
-          </View>
+          <WatermarkOverlay cfg={wConfig} username={username} style={wmStyle} />
         )}
         {wConfig.position === 'custom' && (
           <Text style={{ position: 'absolute', bottom: 8, alignSelf: 'center', color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>拖动水印调整位置</Text>
@@ -1099,13 +1223,25 @@ export default function WatermarkCameraScreen() {
                 <View style={{ padding: 20, gap: 18 }}>
                   <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700', textAlign: 'center' }}>水印设置</Text>
 
-                  {/* 企业名称 */}
+                  {/* 店名 */}
                   <View style={{ gap: 8 }}>
-                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>企业名称</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>店名</Text>
                     <TextInput
-                      value={tempConfig.company}
-                      onChangeText={v => setTempConfig(c => ({ ...c, company: v }))}
-                      placeholder="输入企业/团队名称"
+                      value={tempConfig.storeName}
+                      onChangeText={v => setTempConfig(c => ({ ...c, storeName: v, company: v }))}
+                      placeholder="输入门店/品牌名称"
+                      placeholderTextColor="rgba(255,255,255,0.3)"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: '#fff', fontSize: 14 }}
+                    />
+                  </View>
+
+                  {/* 天气 */}
+                  <View style={{ gap: 8 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>天气/温度</Text>
+                    <TextInput
+                      value={tempConfig.weatherText}
+                      onChangeText={v => setTempConfig(c => ({ ...c, weatherText: v }))}
+                      placeholder="例如：阴 25°C"
                       placeholderTextColor="rgba(255,255,255,0.3)"
                       style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: '#fff', fontSize: 14 }}
                     />
@@ -1113,11 +1249,12 @@ export default function WatermarkCameraScreen() {
 
                   {/* 字段开关 */}
                   {[
-                    { key: 'showCompany', label: '显示企业名称' },
+                    { key: 'showCompany', label: '显示店名' },
                     { key: 'showDate',    label: '显示日期' },
                     { key: 'showTime',    label: '显示时间' },
                     { key: 'showUsername', label: '显示用户名' },
                     { key: 'showLocation', label: '显示定位' },
+                    { key: 'showSlogan', label: '显示标语' },
                   ].map(({ key, label }) => (
                     <View key={key} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Text style={{ color: '#fff', fontSize: 14 }}>{label}</Text>
@@ -1149,6 +1286,20 @@ export default function WatermarkCameraScreen() {
                       >
                         <Text style={{ color: '#FFA07A', fontSize: 13, fontWeight: '700' }}>{locating ? '定位中…' : '重新定位'}</Text>
                       </Pressable>
+                    </View>
+                  )}
+
+                  {/* 标语 */}
+                  {tempConfig.showSlogan && (
+                    <View style={{ gap: 8 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13 }}>标语行</Text>
+                      <TextInput
+                        value={tempConfig.slogan}
+                        onChangeText={v => setTempConfig(c => ({ ...c, slogan: v }))}
+                        placeholder="输入水印底部标语"
+                        placeholderTextColor="rgba(255,255,255,0.3)"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: '#fff', fontSize: 14 }}
+                      />
                     </View>
                   )}
 
