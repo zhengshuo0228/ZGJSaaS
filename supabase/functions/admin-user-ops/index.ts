@@ -61,6 +61,20 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action } = body;
+    const isPlatformAdmin = callerProfile.account_id === '000' || callerRole === 'super_admin';
+
+    const canUseTenant = async (tenantId: string | null) => {
+      if (!tenantId) return isPlatformAdmin;
+      if (isPlatformAdmin) return true;
+      if (tenantId !== callerProfile.tenant_id) return false;
+      const { data: membership } = await adminClient
+        .from('tenant_memberships')
+        .select('role')
+        .eq('tenant_id', tenantId)
+        .eq('user_id', caller.id)
+        .maybeSingle();
+      return ['owner', 'tenant_admin', 'store_admin'].includes((membership?.role as string) ?? '');
+    };
 
     // 000 超管保护：只有 000 自己才能操作自己，兼容新旧登录域名
     const PROTECTED_EMAILS = ['000@zaoguanjia.app', '000@miaoda.app'];
@@ -71,7 +85,7 @@ Deno.serve(async (req) => {
     if (
       PROTECTED_EMAILS.includes(targetEmail) &&
       !PROTECTED_EMAILS.includes(caller.email ?? '') &&
-      (action === 'update' || action === 'update_password' || action === 'delete')
+      (action === 'update' || action === 'update_profile' || action === 'update_password' || action === 'delete')
     ) {
       return new Response(
         JSON.stringify({ error: '000 账号受保护，仅本人可操作' }),
@@ -87,12 +101,15 @@ Deno.serve(async (req) => {
       }
 
       const tenantContext = body.tenant_context ?? {};
-      const tenantId = tenantContext.tenant_id ?? callerProfile.tenant_id ?? null;
-      const storeId = tenantContext.store_id ?? callerProfile.store_id ?? null;
-      const departmentId = tenantContext.department_id ?? callerProfile.department_id ?? null;
+      const tenantId = body.tenant_id ?? tenantContext.tenant_id ?? callerProfile.tenant_id ?? null;
+      const storeId = body.store_id ?? tenantContext.store_id ?? callerProfile.store_id ?? null;
+      const departmentId = body.department_id ?? tenantContext.department_id ?? callerProfile.department_id ?? null;
 
-      if (!tenantId && callerRole !== 'super_admin') {
+      if (!tenantId && !isPlatformAdmin) {
         return new Response(JSON.stringify({ error: '当前账号未绑定品牌租户，无法创建账号' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (!(await canUseTenant(tenantId))) {
+        return new Response(JSON.stringify({ error: '无权在该品牌下创建账号' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -154,6 +171,61 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ===== 更新账号资料 =====
+    if (action === 'update_profile') {
+      const { user_id, display_name, role = 'user', position } = body;
+      if (!user_id) {
+        return new Response(JSON.stringify({ error: '缺少 user_id' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const tenantContext = body.tenant_context ?? {};
+      const tenantId = body.tenant_id ?? tenantContext.tenant_id ?? callerProfile.tenant_id ?? null;
+      const storeId = body.store_id ?? null;
+      const departmentId = body.department_id ?? null;
+
+      if (!(await canUseTenant(tenantId))) {
+        return new Response(JSON.stringify({ error: '无权修改该品牌账号' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const { error: profileError } = await adminClient
+        .from('profiles')
+        .update({
+          display_name: display_name || null,
+          role,
+          position: position || null,
+          tenant_id: tenantId,
+          store_id: storeId,
+          department_id: departmentId,
+        })
+        .eq('id', user_id);
+      if (profileError) {
+        return new Response(JSON.stringify({ error: profileError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      if (tenantId) {
+        const { error: membershipError } = await adminClient
+          .from('tenant_memberships')
+          .upsert(
+            {
+              tenant_id: tenantId,
+              user_id,
+              store_id: storeId,
+              department_id: departmentId,
+              role: role === 'admin' || role === 'super_admin' ? 'tenant_admin' : 'member',
+              is_primary: true,
+            },
+            { onConflict: 'tenant_id,user_id' }
+          );
+        if (membershipError) {
+          return new Response(JSON.stringify({ error: membershipError.message }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

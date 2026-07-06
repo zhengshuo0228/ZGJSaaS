@@ -70,6 +70,41 @@ export interface Profile {
   created_at: string;
 }
 
+export interface TenantRecord {
+  id: string;
+  name: string;
+  slug: string;
+  contact_name: string | null;
+  contact_phone: string | null;
+  plan: string;
+  status: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface StoreRecord {
+  id: string;
+  tenant_id: string;
+  name: string;
+  code: string | null;
+  address: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface DepartmentRecord {
+  id: string;
+  tenant_id: string;
+  store_id: string | null;
+  name: string;
+  is_system: boolean;
+  is_active?: boolean;
+  created_at: string;
+  updated_at?: string | null;
+}
+
 // 岗位记录
 export interface PositionRecord {
   id: string;

@@ -17,6 +17,9 @@ import type {
   Dish,
   DishSop,
   DishWithSop,
+  TenantRecord,
+  StoreRecord,
+  DepartmentRecord,
 } from '@/types/types';
 
 type TenantContext = {
@@ -65,11 +68,21 @@ export async function getMyProfile(): Promise<Profile | null> {
   return data;
 }
 
-export async function getAllProfiles(): Promise<Profile[]> {
-  const { data } = await supabase
+export async function getAllProfiles(filters?: {
+  tenant_id?: string | null;
+  store_id?: string | null;
+  department_id?: string | null;
+}): Promise<Profile[]> {
+  let query = supabase
     .from('profiles')
     .select('*')
     .order('created_at', { ascending: true });
+
+  if (filters?.tenant_id) query = query.eq('tenant_id', filters.tenant_id);
+  if (filters?.store_id) query = query.eq('store_id', filters.store_id);
+  if (filters?.department_id) query = query.eq('department_id', filters.department_id);
+
+  const { data } = await query;
   return Array.isArray(data) ? data : [];
 }
 
@@ -83,9 +96,114 @@ export async function updateProfileDisplayName(id: string, display_name: string)
 
 export async function updateProfile(
   id: string,
-  updates: { display_name?: string; role?: UserRole | string; position?: string | null }
+  updates: {
+    display_name?: string | null;
+    role?: UserRole | string;
+    position?: string | null;
+    tenant_id?: string | null;
+    store_id?: string | null;
+    department_id?: string | null;
+  }
 ): Promise<void> {
   await supabase.from('profiles').update(updates).eq('id', id);
+}
+
+// ===== 组织管理 =====
+
+export async function getTenants(): Promise<TenantRecord[]> {
+  const { data } = await supabase
+    .from('tenants')
+    .select('*')
+    .order('created_at', { ascending: true });
+  return Array.isArray(data) ? (data as TenantRecord[]) : [];
+}
+
+export async function getStores(tenantId?: string | null): Promise<StoreRecord[]> {
+  let query = supabase
+    .from('stores')
+    .select('*')
+    .order('is_active', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (tenantId) query = query.eq('tenant_id', tenantId);
+  const { data } = await query;
+  return Array.isArray(data) ? (data as StoreRecord[]) : [];
+}
+
+export async function createStore(params: {
+  tenant_id?: string | null;
+  name: string;
+  code?: string | null;
+  address?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  const context = await getMyTenantContext();
+  const tenantId = params.tenant_id ?? context.tenant_id;
+  if (!tenantId) return { success: false, error: '缺少品牌租户' };
+  const { error } = await supabase.from('stores').insert({
+    tenant_id: tenantId,
+    name: params.name.trim(),
+    code: params.code?.trim() || null,
+    address: params.address?.trim() || null,
+  });
+  return error ? { success: false, error: error.message } : { success: true };
+}
+
+export async function updateStore(
+  id: string,
+  updates: { name?: string; code?: string | null; address?: string | null; is_active?: boolean }
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.from('stores').update({
+    ...updates,
+    ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
+    ...(updates.code !== undefined ? { code: updates.code?.trim() || null } : {}),
+    ...(updates.address !== undefined ? { address: updates.address?.trim() || null } : {}),
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  return error ? { success: false, error: error.message } : { success: true };
+}
+
+export async function getDepartments(filters?: {
+  tenant_id?: string | null;
+  store_id?: string | null;
+}): Promise<DepartmentRecord[]> {
+  let query = supabase
+    .from('departments')
+    .select('*')
+    .order('is_system', { ascending: false })
+    .order('created_at', { ascending: true });
+  if (filters?.tenant_id) query = query.eq('tenant_id', filters.tenant_id);
+  if (filters?.store_id) query = query.eq('store_id', filters.store_id);
+  const { data } = await query;
+  return Array.isArray(data) ? (data as DepartmentRecord[]) : [];
+}
+
+export async function createDepartment(params: {
+  tenant_id?: string | null;
+  store_id?: string | null;
+  name: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const context = await getMyTenantContext();
+  const tenantId = params.tenant_id ?? context.tenant_id;
+  if (!tenantId) return { success: false, error: '缺少品牌租户' };
+  const { error } = await supabase.from('departments').insert({
+    tenant_id: tenantId,
+    store_id: params.store_id ?? null,
+    name: params.name.trim(),
+    is_system: false,
+    is_active: true,
+  });
+  return error ? { success: false, error: error.message } : { success: true };
+}
+
+export async function updateDepartment(
+  id: string,
+  updates: { name?: string; is_active?: boolean }
+): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.from('departments').update({
+    ...updates,
+    ...(updates.name !== undefined ? { name: updates.name.trim() } : {}),
+    updated_at: new Date().toISOString(),
+  }).eq('id', id);
+  return error ? { success: false, error: error.message } : { success: true };
 }
 
 // ===== 岗位管理 =====
@@ -169,11 +287,41 @@ export async function adminCreateUser(params: {
   display_name?: string;
   role?: UserRole | string;
   position?: string;
+  tenant_id?: string | null;
+  store_id?: string | null;
+  department_id?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
   const token = await getAuthToken();
   const context = await getMyTenantContext();
   const { data, error } = await supabase.functions.invoke('admin-user-ops', {
     body: { action: 'create', ...params, tenant_context: context },
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (error) {
+    const msg = await error?.context?.text?.().catch(() => error.message);
+    try {
+      const parsed = JSON.parse(msg);
+      return { success: false, error: parsed.error ?? msg };
+    } catch {
+      return { success: false, error: msg };
+    }
+  }
+  return data?.success ? { success: true } : { success: false, error: data?.error };
+}
+
+export async function adminUpdateUserProfile(params: {
+  user_id: string;
+  display_name?: string | null;
+  role?: UserRole | string;
+  position?: string | null;
+  tenant_id?: string | null;
+  store_id?: string | null;
+  department_id?: string | null;
+}): Promise<{ success: boolean; error?: string }> {
+  const token = await getAuthToken();
+  const context = await getMyTenantContext();
+  const { data, error } = await supabase.functions.invoke('admin-user-ops', {
+    body: { action: 'update_profile', ...params, tenant_context: context },
     headers: { Authorization: `Bearer ${token}` },
   });
   if (error) {
