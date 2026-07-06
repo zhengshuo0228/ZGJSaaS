@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useFocusEffect } from 'expo-router';
 import {
   ActivityIndicator,
@@ -31,10 +31,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProfile } from '@/context/ProfileContext';
 import { useSession } from '@/ctx';
 import { supabase } from '@/client/supabase';
-import { getUnreadNotificationCount, getUserPermsByPosition } from '@/db/api';
+import { getStores, getUnreadNotificationCount, getUserPermsByPosition } from '@/db/api';
 import { hasDraft } from '@/lib/purchaseDraft';
 
 const REMEMBER_ME_KEY = 'remember_me_credentials';
+const HOME_CARD_ORDER_KEY = 'home_card_order_v1';
 const BG_COLOR = '#F4FBFB';
 // MD3 色板：冷色系
 const C_TEAL_DEEP  = '#05A882'; // 深青绿 — 主操作
@@ -200,39 +201,71 @@ function AnimatedCard({
   isFull,
   badgeCount,
   showDraftDot,
+  isEditing,
+  isSelected,
   onPress,
+  onLongPress,
 }: {
   entry: CardEntry;
   isFull: boolean;
   badgeCount: number;
   showDraftDot: boolean;
+  isEditing: boolean;
+  isSelected: boolean;
   onPress: () => void;
+  onLongPress: () => void;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const wiggle = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isEditing) {
+      wiggle.stopAnimation();
+      wiggle.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(wiggle, { toValue: 1, duration: 90, useNativeDriver: true }),
+        Animated.timing(wiggle, { toValue: -1, duration: 120, useNativeDriver: true }),
+        Animated.timing(wiggle, { toValue: 0, duration: 90, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isEditing, wiggle]);
 
   const handlePressIn = () =>
-    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
+    Animated.spring(scale, { toValue: isEditing ? 1.04 : 0.96, useNativeDriver: true, speed: 50, bounciness: 0 }).start();
   const handlePressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
 
   const isLight = [C_SURF_TEAL, C_SURF_PURPLE].includes(entry.bgColor);
+  const rotate = wiggle.interpolate({
+    inputRange: [-1, 1],
+    outputRange: ['-1.2deg', '1.2deg'],
+  });
 
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={320}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={{ flex: 1 }}
     >
       <Animated.View
         style={{
-          transform: [{ scale }],
+          transform: [{ scale }, { rotate }],
           backgroundColor: entry.bgColor,
           borderRadius: 24,
           height: isFull ? 108 : 116,
           padding: isFull ? 22 : 18,
           justifyContent: 'space-between',
           overflow: 'hidden',
+          borderWidth: isSelected ? 2 : 0,
+          borderColor: isSelected ? '#FFFFFF' : 'transparent',
           // MD3 elevation 2
           boxShadow: isLight
             ? [{ offsetX: 0, offsetY: 1, blurRadius: 6, color: 'rgba(0,0,0,0.07)' }]
@@ -242,6 +275,24 @@ function AnimatedCard({
               ],
         } as object}
       >
+        {isEditing && (
+          <View
+            style={{
+              position: 'absolute',
+              top: 10,
+              right: 10,
+              width: 18,
+              height: 18,
+              borderRadius: 9,
+              backgroundColor: isSelected ? '#FFFFFF' : 'rgba(255,255,255,0.35)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 2,
+            }}
+          >
+            <Text style={{ color: isSelected ? C_TEAL_DEEP : '#fff', fontSize: 12, fontWeight: '900' }}>?</Text>
+          </View>
+        )}
         {/* 装饰圆 — MD3 surface tonal overlay */}
         <View
           style={{
@@ -306,6 +357,10 @@ export default function HomeScreen() {
   const [allowedPerms, setAllowedPerms] = useState<string[] | null>(null);
   const [hasDraftBadge, setHasDraftBadge] = useState(false);
   const [pendingPerfCount, setPendingPerfCount] = useState(0);
+  const [currentStoreName, setCurrentStoreName] = useState('灶管家');
+  const [cardOrder, setCardOrder] = useState<string[]>([]);
+  const [isEditingCards, setIsEditingCards] = useState(false);
+  const [selectedCardHref, setSelectedCardHref] = useState<string | null>(null);
 
   // 按岗位权限过滤菜单
   const visibleEntries = CARD_ENTRIES.filter((e) => {
@@ -320,7 +375,63 @@ export default function HomeScreen() {
     return e.roles.includes(role);
   });
 
+  const orderedVisibleEntries = useMemo(() => {
+    const defaultOrder = CARD_ENTRIES.map((entry) => entry.href);
+    const mergedOrder = [...cardOrder, ...defaultOrder.filter((href) => !cardOrder.includes(href))];
+    return [...visibleEntries].sort((a, b) => mergedOrder.indexOf(a.href) - mergedOrder.indexOf(b.href));
+  }, [cardOrder, visibleEntries]);
+
   const displayName = profile?.display_name || profile?.email?.split('@')[0] || '用户';
+
+
+  useEffect(() => {
+    AsyncStorage.getItem(HOME_CARD_ORDER_KEY).then((raw) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setCardOrder(parsed.filter((item) => typeof item === 'string'));
+      } catch {}
+    });
+  }, []);
+
+  const saveCardOrder = async (nextOrder: string[]) => {
+    setCardOrder(nextOrder);
+    await AsyncStorage.setItem(HOME_CARD_ORDER_KEY, JSON.stringify(nextOrder));
+  };
+
+  const enterCardEditMode = (href: string) => {
+    setIsEditingCards(true);
+    setSelectedCardHref(href);
+  };
+
+  const finishCardEditMode = () => {
+    setIsEditingCards(false);
+    setSelectedCardHref(null);
+  };
+
+  const handleCardPress = (entry: CardEntry) => {
+    if (!isEditingCards) {
+      router.push(entry.href as Parameters<typeof router.push>[0]);
+      return;
+    }
+    if (!selectedCardHref) {
+      setSelectedCardHref(entry.href);
+      return;
+    }
+    if (selectedCardHref === entry.href) {
+      setSelectedCardHref(null);
+      return;
+    }
+    const currentOrder = orderedVisibleEntries.map((item) => item.href);
+    const fromIndex = currentOrder.indexOf(selectedCardHref);
+    const toIndex = currentOrder.indexOf(entry.href);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const nextVisibleOrder = [...currentOrder];
+    [nextVisibleOrder[fromIndex], nextVisibleOrder[toIndex]] = [nextVisibleOrder[toIndex], nextVisibleOrder[fromIndex]];
+    const hiddenOrder = CARD_ENTRIES.map((item) => item.href).filter((href) => !nextVisibleOrder.includes(href));
+    saveCardOrder([...nextVisibleOrder, ...hiddenOrder]);
+    setSelectedCardHref(entry.href);
+  };
 
   const welcomeText = useMemo(() => {
     const hour = new Date().getHours();
@@ -350,6 +461,14 @@ export default function HomeScreen() {
     useCallback(() => {
       getUnreadNotificationCount().then(setUnreadCount);
       hasDraft().then(setHasDraftBadge);
+      if (profile?.store_id) {
+        getStores(profile.tenant_id).then((stores) => {
+          const store = stores.find((item) => item.id === profile.store_id);
+          setCurrentStoreName(store?.name || '灶管家');
+        });
+      } else {
+        setCurrentStoreName('灶管家');
+      }
       supabase.auth.getUser().then(({ data: { user } }) => {
         if (!user) return;
         getUserPermsByPosition(user.id).then((perms) => setAllowedPerms(perms));
@@ -359,7 +478,7 @@ export default function HomeScreen() {
           .invoke('performance-api', { body: { action: 'pending' } })
           .then(({ data }) => setPendingPerfCount(data?.count ?? 0));
       }
-    }, [role])
+    }, [role, profile?.store_id, profile?.tenant_id])
   );
 
     const handleLogout = async () => {
@@ -386,7 +505,7 @@ export default function HomeScreen() {
   // 构建行布局：fullWidth 独占一行，其余双列
   const rows: CardEntry[][] = [];
   let cur: CardEntry[] = [];
-  for (const e of visibleEntries) {
+  for (const e of orderedVisibleEntries) {
     if (e.fullWidth) {
       if (cur.length > 0) { rows.push(cur); cur = []; }
       rows.push([e]);
@@ -411,7 +530,7 @@ export default function HomeScreen() {
               <Image source={LogoImage} style={{ width: 44, height: 44 }} contentFit="contain" />
             </View>
             <View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#0D2B27', letterSpacing: 0.2 }}>灶管家</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#0D2B27', letterSpacing: 0.2, maxWidth: 150 }} numberOfLines={1}>{currentStoreName}</Text>
               <Text style={{ fontSize: 11, color: '#6B9B94', marginTop: 1 }}>
                 {displayName}{profile?.position ? ` · ${profile.position}` : ''}
               </Text>
@@ -456,6 +575,14 @@ export default function HomeScreen() {
         </View>
 
         {/* ─── 卡片网格 ─── */}
+        {isEditingCards && (
+          <View style={{ paddingHorizontal: 20, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <Text style={{ fontSize: 12, color: '#6B9B94', flex: 1 }}>已进入排序模式：点选两个卡片交换位置</Text>
+            <Pressable onPress={finishCardEditMode} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: C_TEAL_DEEP }}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '700' }}>完成</Text>
+            </Pressable>
+          </View>
+        )}
         <View style={{ paddingHorizontal: 16, paddingBottom: 36, gap: 12 }}>
           {rows.map((row, rowIdx) => (
             <View key={`row-${rowIdx}`} style={{ flexDirection: 'row', gap: 12 }}>
@@ -469,7 +596,10 @@ export default function HomeScreen() {
                     entry.href === '/(app)/performance'  ? pendingPerfCount : 0
                   }
                   showDraftDot={entry.href === '/(app)/purchase-submit' && hasDraftBadge}
-                  onPress={() => router.push(entry.href as Parameters<typeof router.push>[0])}
+                  isEditing={isEditingCards}
+                  isSelected={selectedCardHref === entry.href}
+                  onLongPress={() => enterCardEditMode(entry.href)}
+                  onPress={() => handleCardPress(entry)}
                 />
               ))}
             </View>
