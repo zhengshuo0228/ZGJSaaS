@@ -24,6 +24,7 @@ import {
 import DateTimePicker, { useDefaultStyles } from 'react-native-ui-datepicker';
 import { supabase } from '@/client/supabase';
 import { getUserPermsByPosition } from '@/db/api';
+import PermissionGuard from '@/components/PermissionGuard';
 
 // ── 9 种休假/考勤类型 ─────────────────────────────────────
 export type RestType =
@@ -139,7 +140,8 @@ export default function AttendancePage() {
   ];
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <PermissionGuard permissions={['排休申请', '排休管理']} title="考勤排休">
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
       <View className="flex-row items-center px-4 pt-2 pb-2">
         <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
@@ -167,7 +169,8 @@ export default function AttendancePage() {
       {tab === 'calendar' && <CalendarTab canManage={canManage} />}
       {tab === 'requests' && <MyRequestsTab myUserId={myUserId} canManage={canManage} />}
       {tab === 'stats'    && <StatsTab myUserId={myUserId} />}
-    </SafeAreaView>
+      </SafeAreaView>
+    </PermissionGuard>
   );
 }
 

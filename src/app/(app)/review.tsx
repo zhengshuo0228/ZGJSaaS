@@ -29,6 +29,7 @@ import {
 } from '@/lib/timeSettings';
 import { useProfile } from '@/context/ProfileContext';
 import { GUEST_DENY_MSG } from '@/lib/guestGuard';
+import PermissionGuard from '@/components/PermissionGuard';
 
 type TimePreset = '全部' | '午市' | '晚市' | '昨天' | '日期';
 type ReviewTab = 'pending' | 'reviewed' | 'logs';
@@ -431,7 +432,8 @@ export default function ReviewScreen() {
   ];
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <PermissionGuard permissions={['审核申购单']} title="申购审核">
+      <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
 
       {/* 顶部栏 */}
@@ -1056,6 +1058,7 @@ export default function ReviewScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </PermissionGuard>
   );
 }

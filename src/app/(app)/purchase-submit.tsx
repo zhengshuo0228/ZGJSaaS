@@ -21,6 +21,7 @@ import { CATEGORY_COLORS } from '@/types/types';
 import { useProfile } from '@/context/ProfileContext';
 import { GUEST_DENY_MSG } from '@/lib/guestGuard';
 import { saveDraft, loadDraft, clearDraft, formatDraftTime } from '@/lib/purchaseDraft';
+import PermissionGuard from '@/components/PermissionGuard';
 
 interface CartItem {
   ingredient: Ingredient;
@@ -263,7 +264,8 @@ export default function PurchaseSubmitScreen() {
   const categoryBadgeColor = CATEGORY_COLORS;
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
+    <PermissionGuard permissions={['提交申购单']} title="申购提交" allowGuestMode>
+      <SafeAreaView className="flex-1 bg-background" edges={['top', 'bottom']}>
       <StatusBar style="dark" />
 
       {/* 顶部栏 */}
@@ -722,6 +724,7 @@ export default function PurchaseSubmitScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </PermissionGuard>
   );
 }

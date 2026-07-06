@@ -21,6 +21,7 @@ import { supabase } from '@/client/supabase';
 import { getUserPermsByPosition } from '@/db/api';
 import { REST_TYPES, REST_MAP, REASON_REQUIRED as REASON_REQ, toYMD, DatePickerModal } from './attendance';
 import type { RestType } from './attendance';
+import PermissionGuard from '@/components/PermissionGuard';
 
 // ── 类型 ─────────────────────────────────────────────────
 interface RestRecord {
@@ -80,7 +81,8 @@ export default function RestManagePage() {
   ];
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={['top']}>
+    <PermissionGuard permissions={['排休管理']} title="排休管理">
+      <SafeAreaView className="flex-1 bg-background" edges={['top']}>
       <StatusBar style="dark" />
       <View className="flex-row items-center px-4 pt-2 pb-2">
         <Pressable onPress={() => router.back()} className="w-10 h-10 items-center justify-center">
@@ -104,7 +106,8 @@ export default function RestManagePage() {
       {tab === 'approval' && <ApprovalTab canManage={canManage} />}
       {tab === 'schedule' && <ScheduleTab canManage={canManage} />}
       {tab === 'norest'   && <NoRestTab canManage={canManage} />}
-    </SafeAreaView>
+      </SafeAreaView>
+    </PermissionGuard>
   );
 }
 

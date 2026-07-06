@@ -22,6 +22,7 @@ import {
   type PeriodStats,
   type CategoryStats,
 } from '@/db/api';
+import PermissionGuard from '@/components/PermissionGuard';
 import {
   getTimeSettings, buildDateRange, buildDayRange,
   type TimePeriodSettings, DEFAULT_TIME_SETTINGS,
@@ -285,7 +286,8 @@ export default function StatisticsScreen() {
   const chartBarHeight = Math.min(120, (width - 64) * 0.35);
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <PermissionGuard permissions={['数据统计']} title="数据统计">
+      <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
 
       {/* 顶部栏 */}
@@ -497,7 +499,8 @@ export default function StatisticsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </PermissionGuard>
   );
 }
 

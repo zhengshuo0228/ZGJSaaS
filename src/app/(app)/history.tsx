@@ -21,6 +21,7 @@ import { captureRef } from 'react-native-view-shot';
 import { getMyOrders, withdrawOrder, updatePendingOrderItems, getOrderOperationLogs } from '@/db/api';
 import type { PurchaseOrder, OrderItemWithIngredient, OperationLog } from '@/types/types';
 import { ORDER_STATUS_LABELS, ORDER_STATUS_COLORS } from '@/types/types';
+import PermissionGuard from '@/components/PermissionGuard';
 
 // ===== 时间段工具 =====
 type TimePreset = '午市' | '晚市' | '昨天' | '日期范围';
@@ -294,7 +295,8 @@ export default function HistoryScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <PermissionGuard permissions={['查看申购历史']} title="申购历史">
+      <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
 
       {/* 顶部栏 */}
@@ -693,6 +695,7 @@ export default function HistoryScreen() {
           </Pressable>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </PermissionGuard>
   );
 }

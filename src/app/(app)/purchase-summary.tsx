@@ -32,6 +32,7 @@ import {
 import { useProfile } from '@/context/ProfileContext';
 import { GUEST_DENY_MSG } from '@/lib/guestGuard';
 import { setShareSummaryPayload } from '@/lib/shareSummaryStore';
+import PermissionGuard from '@/components/PermissionGuard';
 
 // ===== 时间段工具 =====
 type TimePreset = '今天' | '午市' | '晚市' | '昨天' | '日期';
@@ -623,7 +624,8 @@ export default function PurchaseSummaryScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <PermissionGuard permissions={['查看采购汇总']} title="采购汇总">
+      <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
 
       {/* 顶部栏 — 标题内嵌品类/供应商统计数据 */}
@@ -1360,6 +1362,7 @@ export default function PurchaseSummaryScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </PermissionGuard>
   );
 }

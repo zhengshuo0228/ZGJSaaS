@@ -26,6 +26,7 @@ import {
 import type { Ingredient, IngredientCategory, IngredientCategoryRecord, IngredientSubcategoryRecord } from '@/types/types';
 import { CATEGORY_COLORS } from '@/types/types';
 import { useProfile } from '@/context/ProfileContext';
+import PermissionGuard from '@/components/PermissionGuard';
 
 // ===== 预设单位 =====
 const PRESET_UNITS = ['斤', '个', '包', '箱', '桶', '瓶', '袋', '条', '块', '份', '克', '升'];
@@ -443,7 +444,8 @@ export default function IngredientsScreen() {
   const allUnits = [...PRESET_UNITS, ...customUnits.filter((u) => !PRESET_UNITS.includes(u))];
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <PermissionGuard permissions={['管理食材库']} title="食材库管理">
+      <SafeAreaView className="flex-1 bg-background">
       <StatusBar style="dark" />
 
       {/* 顶部栏 */}
@@ -1211,6 +1213,7 @@ export default function IngredientsScreen() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </PermissionGuard>
   );
 }
