@@ -59,7 +59,7 @@ const MENU_PERM_MAP: Record<string, string> = {
   '/(app)/account-management': '账号管理',
   '/(app)/statistics':         '数据统计',
   '/(app)/performance':        '绩效看板',
-  '/(app)/attendance':         '排休申请', // 有"排休申请"权限才在首页显示入口
+  '/(app)/attendance':         '排休申请', // 排休申请或排休管理任一权限即可显示入口
   // 菜品标准SOP — 无需特殊权限（全员可见），不放入 MENU_PERM_MAP
 };
 
@@ -155,7 +155,7 @@ const CARD_ENTRIES: CardEntry[] = [
     bgColor: C_SURF_PURPLE,
     textColor: '#1A1A2E',
     iconColor: '#7C5CBF',
-    roles: ['super_admin'],
+    roles: ['admin', 'super_admin'],
   },
   {
     label: '菜品标准SOP',
@@ -369,6 +369,9 @@ export default function HomeScreen() {
       if (e.href === '/(app)/performance') {
         const perfPerms = ['绩效加分扣分','绩效审核申请','绩效查看全部','绩效导出汇总','绩效删除记录','绩效提交申请'];
         return perfPerms.some((p) => allowedPerms.includes(p));
+      }
+      if (e.href === '/(app)/attendance') {
+        return allowedPerms.includes('排休申请') || allowedPerms.includes('排休管理');
       }
       return allowedPerms.includes(perm);
     }

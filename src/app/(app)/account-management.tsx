@@ -44,6 +44,7 @@ import {
   getDepartments,
   getOperationLogs,
   getPositions,
+  getUserPermsByPosition,
   getStores,
   getTenants,
   updateDepartment,
@@ -193,9 +194,11 @@ export default function AccountManagementScreen() {
   const [timeSaving, setTimeSaving] = useState(false);
   const [logs, setLogs] = useState<OperationLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [effectivePerms, setEffectivePerms] = useState<string[]>([]);
 
   const isPlatformAdmin = myProfile?.account_id === '000' || myProfile?.role === 'super_admin';
-  const canManageAccounts = myProfile?.role === 'super_admin' || myProfile?.role === 'admin';
+  const canManageAccounts = isPlatformAdmin || myProfile?.role === 'admin' || effectivePerms.includes('账号管理');
+  const canEditPositionPermissions = myProfile?.account_id === '000';
   const activeTenantId = selectedTenantId ?? myProfile?.tenant_id ?? tenants[0]?.id ?? null;
 
   const tenantStores = useMemo(
@@ -236,13 +239,14 @@ export default function AccountManagementScreen() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [tenantRows, storeRows, departmentRows, profileRows, positionRows, timeRows] = await Promise.all([
+    const [tenantRows, storeRows, departmentRows, profileRows, positionRows, timeRows, permRows] = await Promise.all([
       getTenants(),
       getStores(),
       getDepartments(),
       getAllProfiles(),
       getPositions(),
       getTimeSettings(),
+      myProfile?.id ? getUserPermsByPosition(myProfile.id) : Promise.resolve([]),
     ]);
     setTenants(tenantRows);
     setStores(storeRows);
@@ -250,6 +254,7 @@ export default function AccountManagementScreen() {
     setProfiles(profileRows);
     setPositions(positionRows);
     setTimeSettings(timeRows);
+    setEffectivePerms(Array.isArray(permRows) ? permRows : []);
     refreshPositionPerms(positionRows);
     const defaultTenant = selectedTenantId ?? myProfile?.tenant_id ?? tenantRows[0]?.id ?? null;
     const defaultStore = selectedStoreId ?? myProfile?.store_id ?? storeRows.find((store: StoreRecord) => store.tenant_id === defaultTenant)?.id ?? null;
@@ -510,6 +515,28 @@ export default function AccountManagementScreen() {
     return <Users size={16} color="#6b7280" />;
   };
 
+  if (!loading && !canManageAccounts) {
+    return (
+      <SafeAreaView className="flex-1 bg-background">
+        <StatusBar style="dark" />
+        <View className="bg-card px-4 pt-3 pb-3 flex-row items-center gap-3 border-b border-border">
+          <Pressable onPress={() => router.replace('/(app)/home')} className="w-9 h-9 rounded-full bg-muted items-center justify-center">
+            <ArrowLeft size={20} color="#374151" />
+          </Pressable>
+          <Text className="text-xl font-bold text-foreground flex-1">组织管理</Text>
+        </View>
+        <View className="flex-1 items-center justify-center px-8 gap-3">
+          <Shield size={42} color="#9ca3af" />
+          <Text className="text-lg font-bold text-foreground">暂无账号管理权限</Text>
+          <Text className="text-sm text-muted-foreground text-center">请联系品牌管理员或 000 平台超管，在岗位权限中开通“账号管理”。</Text>
+          <Pressable onPress={() => router.replace('/(app)/home')} className="mt-2 bg-primary rounded-xl px-5 py-3">
+            <Text className="text-white font-semibold">返回首页</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   const renderTenantChips = (value: string | null, onChange: (id: string) => void) => (
     <View className="flex-row flex-wrap gap-2">
       {tenants.map((tenant) => (
@@ -627,7 +654,7 @@ export default function AccountManagementScreen() {
                 const displayName = profile.display_name || profile.email?.split('@')[0] || '未命名员工';
                 const isSelf = profile.id === myProfile?.id;
                 const isProtected = profile.account_id === '000' || profile.email === '000@zaoguanjia.app' || profile.email === '000@miaoda.app';
-                const canEditThis = !isProtected || isSelf;
+                const canEditThis = canManageAccounts && (!isProtected || isSelf);
                 return (
                   <View key={profile.id} className="bg-card rounded-2xl p-4 gap-3">
                     <View className="flex-row items-center gap-3">
@@ -747,6 +774,9 @@ export default function AccountManagementScreen() {
                     {addingPos ? <ActivityIndicator size="small" color="#fff" /> : <Plus size={18} color="#fff" />}
                   </Pressable>
                 </View>
+                {!canEditPositionPermissions ? (
+                  <Text className="text-xs text-muted-foreground">岗位可由品牌管理员新增；权限配置仅 000 平台超管可修改。</Text>
+                ) : null}
               </View>
               {positions.map((position) => (
                 <View key={position.id} className="bg-card rounded-2xl p-4 gap-3">
@@ -756,15 +786,17 @@ export default function AccountManagementScreen() {
                       <Text className="text-xs text-muted-foreground mt-1">{(position.permissions ?? []).length} 个权限</Text>
                     </View>
                     <View className="flex-row gap-2">
-                      <Pressable onPress={() => setEditingPosId(editingPosId === position.id ? null : position.id)} className="px-3 py-2 bg-muted rounded-xl">
-                        <Text className="text-xs font-semibold text-foreground">{editingPosId === position.id ? '收起' : '编辑权限'}</Text>
-                      </Pressable>
+                      {canEditPositionPermissions ? (
+                        <Pressable onPress={() => setEditingPosId(editingPosId === position.id ? null : position.id)} className="px-3 py-2 bg-muted rounded-xl">
+                          <Text className="text-xs font-semibold text-foreground">{editingPosId === position.id ? '收起' : '编辑权限'}</Text>
+                        </Pressable>
+                      ) : null}
                       <Pressable onPress={() => handleDelPos(position.id)} className="px-3 py-2 bg-destructive/10 rounded-xl">
                         <Text className="text-xs font-semibold text-destructive">删除</Text>
                       </Pressable>
                     </View>
                   </View>
-                  {editingPosId === position.id ? (
+                  {editingPosId === position.id && canEditPositionPermissions ? (
                     <View className="gap-4 pt-2 border-t border-border">
                       {PERM_GROUPS.map((group) => (
                         <View key={group.label} className="gap-2">
