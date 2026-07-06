@@ -70,7 +70,6 @@ import type {
 const ROLE_OPTIONS = [
   { value: 'user', label: '员工' },
   { value: 'admin', label: '品牌管理员' },
-  { value: 'super_admin', label: '平台超管' },
 ];
 
 const PERM_GROUPS: { label: string; perms: string[] }[] = [
@@ -554,7 +553,8 @@ export default function AccountManagementScreen() {
         ) : null}
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="bg-card border-b border-border" contentContainerStyle={{ paddingHorizontal: 10 }}>
+      <View className="bg-card border-b border-border">
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
         {[
           { key: 'accounts', label: '员工', icon: Users },
           { key: 'stores', label: '门店', icon: Store },
@@ -569,14 +569,21 @@ export default function AccountManagementScreen() {
               setActiveTab(key as ActiveTab);
               if (key === 'logs') loadLogs();
             }}
-            className="items-center justify-center px-4 py-3"
-            style={{ borderBottomWidth: 2, borderBottomColor: activeTab === key ? '#059669' : 'transparent' }}
+            className="items-center justify-center rounded-2xl"
+            style={{
+              width: 74,
+              height: 58,
+              backgroundColor: activeTab === key ? '#ecfdf5' : '#f8fafc',
+              borderWidth: 1,
+              borderColor: activeTab === key ? '#99f6e4' : '#e5e7eb',
+            }}
           >
             <Icon size={15} color={activeTab === key ? '#059669' : '#9ca3af'} />
             <Text className={`text-xs mt-1 font-semibold ${activeTab === key ? 'text-primary' : 'text-muted-foreground'}`}>{label}</Text>
           </Pressable>
         ))}
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {message ? (
         <View className="mx-4 mt-3 bg-primary/10 rounded-xl px-4 py-3">
@@ -838,7 +845,7 @@ export default function AccountManagementScreen() {
               <View><FieldLabel required>门店</FieldLabel>{renderStoreChips(newTenantId, newStoreId, (id) => { setNewStoreId(id); setNewDepartmentId(null); })}</View>
               <View><FieldLabel required>部门</FieldLabel>{renderDepartmentChips(newTenantId, newStoreId, newDepartmentId, setNewDepartmentId)}</View>
               <View><FieldLabel required>岗位</FieldLabel><View className="flex-row flex-wrap gap-2">{positions.map((p) => <Chip key={p.id} label={p.name} active={newPos === p.name} onPress={() => setNewPos(p.name)} />)}</View></View>
-              <View><FieldLabel>权限角色</FieldLabel><View className="flex-row flex-wrap gap-2">{ROLE_OPTIONS.map((role) => <Chip key={role.value} label={role.label} active={newRole === role.value} onPress={() => setNewRole(role.value)} disabled={!isPlatformAdmin && role.value === 'super_admin'} />)}</View></View>
+              <View><FieldLabel>权限角色</FieldLabel><View className="flex-row flex-wrap gap-2">{ROLE_OPTIONS.map((role) => <Chip key={role.value} label={role.label} active={newRole === role.value} onPress={() => setNewRole(role.value)} />)}</View></View>
               {createError ? <Text className="text-destructive text-sm">{createError}</Text> : null}
               <Pressable onPress={handleCreate} disabled={creating} className="bg-primary rounded-xl py-4 items-center">
                 {creating ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-semibold">创建账号</Text>}
@@ -861,7 +868,7 @@ export default function AccountManagementScreen() {
               <View><FieldLabel required>门店</FieldLabel>{renderStoreChips(editTenantId, editStoreId, (id) => { setEditStoreId(id); setEditDepartmentId(null); })}</View>
               <View><FieldLabel required>部门</FieldLabel>{renderDepartmentChips(editTenantId, editStoreId, editDepartmentId, setEditDepartmentId)}</View>
               <View><FieldLabel required>岗位</FieldLabel><View className="flex-row flex-wrap gap-2">{positions.map((p) => <Chip key={p.id} label={p.name} active={editPosition === p.name} onPress={() => setEditPosition(p.name)} />)}</View></View>
-              <View><FieldLabel>权限角色</FieldLabel><View className="flex-row flex-wrap gap-2">{ROLE_OPTIONS.map((role) => <Chip key={role.value} label={role.label} active={editRole === role.value} onPress={() => setEditRole(role.value)} disabled={!isPlatformAdmin && role.value === 'super_admin'} />)}</View></View>
+              <View><FieldLabel>权限角色</FieldLabel><View className="flex-row flex-wrap gap-2">{ROLE_OPTIONS.map((role) => <Chip key={role.value} label={role.label} active={editRole === role.value} onPress={() => setEditRole(role.value)} />)}</View></View>
               <Pressable onPress={handleSaveEdit} disabled={editSaving} className="bg-primary rounded-xl py-4 items-center">
                 {editSaving ? <ActivityIndicator color="#fff" /> : <Text className="text-white font-semibold">保存修改</Text>}
               </Pressable>
