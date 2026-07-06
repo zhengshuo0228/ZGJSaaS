@@ -1,29 +1,29 @@
 {
   "expo": {
-    "name": "開小灶PMS",
-    "slug": "food-purchase-management",
-    "version": "1.0.169",
+    "name": "灶管家",
+    "slug": "zaoguanjia",
+    "version": "1.0.170",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#DC0E23"
+      "backgroundColor": "#FFF7ED"
     },
     "ios": {
       "supportsTablet": true,
-      "buildNumber": "1",
-      "bundleIdentifier": "com.miaoda.appbwpk023a37r5"
+      "buildNumber": "2",
+      "bundleIdentifier": "com.zaoguanjia.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#DC0E23"
+        "backgroundColor": "#FFF7ED"
       },
       "predictiveBackGestureEnabled": false,
-      "versionCode": 1,
-      "package": "com.miaoda.appbwpk023a37r5"
+      "versionCode": 2,
+      "package": "com.zaoguanjia.app"
     },
     "web": {
       "bundler": "metro",
@@ -43,23 +43,23 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "允许 $(PRODUCT_NAME) 访问相机以使用水印拍照功能",
-          "microphonePermission": "允许 $(PRODUCT_NAME) 访问麦克风",
+          "cameraPermission": "允许 $(PRODUCT_NAME) 访问相机，用于拍摄水印照片。",
+          "microphonePermission": "允许 $(PRODUCT_NAME) 访问麦克风，用于录制水印视频。",
           "recordAudioAndroid": false
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "允许 $(PRODUCT_NAME) 访问相机以拍摄绩效照片",
-          "photosPermission": "允许 $(PRODUCT_NAME) 访问相册以上传绩效证明图片"
+          "cameraPermission": "允许 $(PRODUCT_NAME) 访问相机，用于拍摄照片。",
+          "photosPermission": "允许 $(PRODUCT_NAME) 访问相册，用于上传图片或视频。"
         }
       ],
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
-          "color": "#2E9D6A",
+          "icon": "./assets/notification/ic_notification_96.png",
+          "color": "#F97316",
           "sounds": [],
           "iosDisplayInForeground": true
         }
@@ -67,14 +67,14 @@
       [
         "expo-media-library",
         {
-          "photosPermission": "允许開小灶访问相册以保存采购汇总图片",
-          "savePhotosPermission": "允许開小灶保存图片到相册"
+          "photosPermission": "允许 $(PRODUCT_NAME) 访问相册，用于保存图片或视频。",
+          "savePhotosPermission": "允许 $(PRODUCT_NAME) 保存图片或视频到相册。"
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "?? $(PRODUCT_NAME) ?????????????????"
+          "locationWhenInUsePermission": "允许 $(PRODUCT_NAME) 获取当前位置，用于生成水印地点信息。"
         }
       ],
       "expo-updates",

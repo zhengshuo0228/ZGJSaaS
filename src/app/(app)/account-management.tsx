@@ -231,7 +231,7 @@ export default function AccountManagementScreen() {
     setCreating(true);
     setCreateError('');
     const rawInput = newEmail.trim();
-    const emailToUse = rawInput.includes('@') ? rawInput : `${rawInput}@miaoda.app`;
+    const emailToUse = rawInput.includes('@') ? rawInput : `${rawInput}@zaoguanjia.app`;
     const result = await adminCreateUser({
       email: emailToUse,
       password: finalPw,
@@ -293,7 +293,7 @@ export default function AccountManagementScreen() {
       const pw = parts[3] || '123456';
       if (!username) continue;
       const role: UserRole = (roleRaw || 'user') as UserRole;
-      const email = username.includes('@') ? username : `${username}@miaoda.app`;
+      const email = username.includes('@') ? username : `${username}@zaoguanjia.app`;
       const result = await adminCreateUser({ email, password: pw, display_name: displayName || undefined, role });
       if (result.success) {
         success++;
@@ -459,7 +459,7 @@ export default function AccountManagementScreen() {
                 const displayName = profile.display_name || profile.email?.split('@')[0] || '未知用户';
                 const isSelf = profile.id === myProfile?.id;
                 // 000 账号特殊保护：只有 000 自己能看到编辑/改密码，其他人只能只读
-                const isProtected = profile.email === '000@miaoda.app';
+                const isProtected = profile.email === '000@zaoguanjia.app' || profile.email === '000@miaoda.app';
                 const canEditThis = !isProtected || isSelf;
                 return (
                   <View
@@ -486,7 +486,7 @@ export default function AccountManagementScreen() {
                           ) : null}
                         </View>
                         <Text className="text-xs text-muted-foreground mt-0.5">
-                          {profile.email?.replace(/@miaoda\.app$/, '') ?? profile.email ?? ''}
+                          {profile.email?.replace(/@(zaoguanjia|miaoda)\.app$/, '') ?? profile.email ?? ''}
                         </Text>
                       </View>
                     </View>

@@ -11,8 +11,7 @@ import {
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-
-const LOGO_URI = 'https://miaoda-conversation-file.cdn.bcebos.com/user-bwpikr8jqhvk/app-bwpk023a37r5/20260527/%E9%96%8B%E5%B0%8F%E7%81%B6PMS_%E5%9B%BE%E6%A0%87_%E7%B2%97%E4%BA%AE%E7%89%88.png';
+import LogoImage from '../../../assets/icon.png';
 
 import {
   ShoppingCart,
@@ -338,7 +337,7 @@ export default function HomeScreen() {
       '今日采购任务已就绪，请查收',
       '每天进步一点点，采购更省心',
       '用心选好每一份食材',
-      '开小灶PMS，让采购更高效',
+      '灶管家，让连锁门店管理更高效',
       '确认今日食材需求了吗？',
       '备料充足，出餐才快',
     ];
@@ -409,10 +408,10 @@ export default function HomeScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={{ width: 44, height: 44, borderRadius: 12, overflow: 'hidden', backgroundColor: '#fff', boxShadow: [{ offsetX: 0, offsetY: 1, blurRadius: 4, color: 'rgba(0,0,0,0.08)' }] } as object}>
-              <Image source={{ uri: LOGO_URI }} style={{ width: 44, height: 44 }} contentFit="contain" />
+              <Image source={LogoImage} style={{ width: 44, height: 44 }} contentFit="contain" />
             </View>
             <View>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: '#0D2B27', letterSpacing: 0.2 }}>開小灶PMS</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: '#0D2B27', letterSpacing: 0.2 }}>灶管家</Text>
               <Text style={{ fontSize: 11, color: '#6B9B94', marginTop: 1 }}>
                 {displayName}{profile?.position ? ` · ${profile.position}` : ''}
               </Text>

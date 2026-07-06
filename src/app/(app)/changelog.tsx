@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -116,7 +116,7 @@ export default function ChangelogScreen() {
             })}
 
             <Text className="text-center text-xs text-muted-foreground py-4">
-              感谢您使用開小灶PMS 🎉
+              感谢您使用灶管家 🎉
             </Text>
           </View>
         </ScrollView>
@@ -124,3 +124,4 @@ export default function ChangelogScreen() {
     </SafeAreaView>
   );
 }
+

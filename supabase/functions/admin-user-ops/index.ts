@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
     // 检查调用者是否有账号管理权限（super_admin 或拥有"账号管理"权限的岗位）
     const { data: callerProfile } = await adminClient
       .from('profiles')
-      .select('role, position')
+      .select('role, position, tenant_id, store_id, department_id, account_id, email')
       .eq('id', caller.id)
       .maybeSingle();
 
@@ -49,6 +49,7 @@ Deno.serve(async (req) => {
           .from('positions')
           .select('permissions')
           .eq('name', posName)
+          .eq('tenant_id', callerProfile.tenant_id)
           .maybeSingle();
         const perms: string[] = Array.isArray(posRow?.permissions) ? (posRow.permissions as string[]) : [];
         hasAccountMgmt = perms.includes('账号管理');
@@ -61,15 +62,15 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
-    // 000@miaoda.app 超管保护：只有 000 自己才能操作自己
-    const PROTECTED_EMAIL = '000@miaoda.app';
+    // 000 超管保护：只有 000 自己才能操作自己，兼容新旧登录域名
+    const PROTECTED_EMAILS = ['000@zaoguanjia.app', '000@miaoda.app'];
     const { data: targetProfile } = body.user_id
       ? await adminClient.from('profiles').select('email').eq('id', body.user_id).maybeSingle()
       : { data: null };
     const targetEmail = targetProfile?.email ?? '';
     if (
-      targetEmail === PROTECTED_EMAIL &&
-      caller.email !== PROTECTED_EMAIL &&
+      PROTECTED_EMAILS.includes(targetEmail) &&
+      !PROTECTED_EMAILS.includes(caller.email ?? '') &&
       (action === 'update' || action === 'update_password' || action === 'delete')
     ) {
       return new Response(
@@ -83,6 +84,15 @@ Deno.serve(async (req) => {
       const { email, password, display_name, role = 'user', position } = body;
       if (!email || !password) {
         return new Response(JSON.stringify({ error: '账号和密码不能为空' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+
+      const tenantContext = body.tenant_context ?? {};
+      const tenantId = tenantContext.tenant_id ?? callerProfile.tenant_id ?? null;
+      const storeId = tenantContext.store_id ?? callerProfile.store_id ?? null;
+      const departmentId = tenantContext.department_id ?? callerProfile.department_id ?? null;
+
+      if (!tenantId && callerRole !== 'super_admin') {
+        return new Response(JSON.stringify({ error: '当前账号未绑定品牌租户，无法创建账号' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -105,6 +115,9 @@ Deno.serve(async (req) => {
             display_name: display_name || null,
             role,
             position: position || null,
+            tenant_id: tenantId,
+            store_id: storeId,
+            department_id: departmentId,
           },
           { onConflict: 'id' }
         );
@@ -115,6 +128,29 @@ Deno.serve(async (req) => {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      if (tenantId) {
+        const { error: membershipError } = await adminClient
+          .from('tenant_memberships')
+          .upsert(
+            {
+              tenant_id: tenantId,
+              user_id: newUser.user.id,
+              store_id: storeId,
+              department_id: departmentId,
+              role: role === 'admin' || role === 'super_admin' ? 'tenant_admin' : 'member',
+              is_primary: true,
+            },
+            { onConflict: 'tenant_id,user_id' }
+          );
+        if (membershipError) {
+          await adminClient.auth.admin.deleteUser(newUser.user.id);
+          return new Response(JSON.stringify({ error: `账号创建成功但租户成员写入失败：${membershipError.message}` }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       }
 
       return new Response(JSON.stringify({ success: true, user_id: newUser.user.id }), {

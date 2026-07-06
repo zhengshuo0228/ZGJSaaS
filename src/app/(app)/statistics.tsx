@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+﻿import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -235,7 +235,7 @@ export default function StatisticsScreen() {
 
       const base64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx' });
       const today = new Date().toISOString().slice(0, 10);
-      const fileName = `開小灶PMS数据统计_${today}_${presetLabel}.xlsx`;
+      const fileName = `灶管家数据统计_${today}_${presetLabel}.xlsx`;
       const filePath = `${FileSystem.cacheDirectory}${fileName}`;
       await FileSystem.writeAsStringAsync(filePath, base64, { encoding: FileSystem.EncodingType.Base64 });
       const canShare = await Sharing.isAvailableAsync();
@@ -500,3 +500,4 @@ export default function StatisticsScreen() {
     </SafeAreaView>
   );
 }
+

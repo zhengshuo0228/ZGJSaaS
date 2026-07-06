@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SOP详情页
  * 展示菜品完整SOP制作指南：食材清单、制作步骤、摆盘要求、备注、版本号
  * 管理员/厨师长可编辑、导出PDF、查看版本历史
@@ -177,7 +177,7 @@ export default function SopDetailScreen() {
     <div class="logo">🍳</div>
     <div class="title-block">
       <h1>${dish.name}</h1>
-      <div class="meta">开小灶PMS · 标准SOP制作指南</div>
+      <div class="meta">灶管家 · 标准SOP制作指南</div>
     </div>
   </div>
   ${imgHtml}
@@ -191,7 +191,7 @@ export default function SopDetailScreen() {
   ${section('🍽 摆盘要求', sop?.plating)}
   ${section('📝 备注', sop?.notes)}
   ${!sop ? '<div class="section"><div class="section-body" style="color:#9CA3AF">该菜品暂无SOP内容</div></div>' : ''}
-  <div class="footer">本文件由开小灶PMS自动生成 · ${new Date().toLocaleDateString('zh-CN')}</div>
+  <div class="footer">本文件由灶管家自动生成 · ${new Date().toLocaleDateString('zh-CN')}</div>
 </body>
 </html>`;
 
@@ -417,3 +417,4 @@ export default function SopDetailScreen() {
     </SafeAreaView>
   );
 }
+

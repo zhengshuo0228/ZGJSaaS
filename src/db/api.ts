@@ -19,6 +19,41 @@ import type {
   DishWithSop,
 } from '@/types/types';
 
+type TenantContext = {
+  tenant_id: string | null;
+  store_id: string | null;
+  department_id: string | null;
+};
+
+async function getMyTenantContext(): Promise<TenantContext> {
+  const user = (await supabase.auth.getUser()).data.user;
+  if (!user) return { tenant_id: null, store_id: null, department_id: null };
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('tenant_id, store_id, department_id')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  return {
+    tenant_id: (data?.tenant_id as string | null | undefined) ?? null,
+    store_id: (data?.store_id as string | null | undefined) ?? null,
+    department_id: (data?.department_id as string | null | undefined) ?? null,
+  };
+}
+
+function withTenant<T extends Record<string, unknown>>(
+  record: T,
+  context: TenantContext,
+  options: { includeStore?: boolean } = {}
+): T {
+  return {
+    ...record,
+    ...(context.tenant_id ? { tenant_id: context.tenant_id } : {}),
+    ...(options.includeStore && context.store_id ? { store_id: context.store_id } : {}),
+  };
+}
+
 // ===== 用户档案 =====
 
 export async function getMyProfile(): Promise<Profile | null> {
@@ -65,7 +100,8 @@ export async function getPositions(): Promise<PositionRecord[]> {
 }
 
 export async function createPosition(name: string): Promise<void> {
-  await supabase.from('positions').insert({ name: name.trim() });
+  const context = await getMyTenantContext();
+  await supabase.from('positions').insert(withTenant({ name: name.trim() }, context));
 }
 
 export async function deletePosition(id: string): Promise<void> {
@@ -135,8 +171,9 @@ export async function adminCreateUser(params: {
   position?: string;
 }): Promise<{ success: boolean; error?: string }> {
   const token = await getAuthToken();
+  const context = await getMyTenantContext();
   const { data, error } = await supabase.functions.invoke('admin-user-ops', {
-    body: { action: 'create', ...params },
+    body: { action: 'create', ...params, tenant_context: context },
     headers: { Authorization: `Bearer ${token}` },
   });
   if (error) {
@@ -207,7 +244,8 @@ export async function getCategories(): Promise<IngredientCategoryRecord[]> {
 }
 
 export async function createCategory(name: string, sort_order = 99): Promise<void> {
-  await supabase.from('ingredient_categories').insert({ name: name.trim(), sort_order });
+  const context = await getMyTenantContext();
+  await supabase.from('ingredient_categories').insert(withTenant({ name: name.trim(), sort_order }, context));
 }
 
 export async function updateCategory(id: string, updates: { name?: string; sort_order?: number }): Promise<void> {
@@ -228,7 +266,8 @@ export async function getSubcategories(categoryId?: string): Promise<IngredientS
 }
 
 export async function createSubcategory(categoryId: string, name: string): Promise<void> {
-  await supabase.from('ingredient_subcategories').insert({ category_id: categoryId, name: name.trim() });
+  const context = await getMyTenantContext();
+  await supabase.from('ingredient_subcategories').insert(withTenant({ category_id: categoryId, name: name.trim() }, context));
 }
 
 export async function updateSubcategory(id: string, name: string): Promise<void> {
@@ -250,9 +289,11 @@ export async function getSupplierRecords(): Promise<IngredientSupplierRecord[]> 
 }
 
 export async function createSupplierRecord(name: string, contact?: string): Promise<void> {
+  const context = await getMyTenantContext();
   await supabase.from('ingredient_suppliers').insert({
     name: name.trim(),
     contact: contact?.trim() || null,
+    ...(context.tenant_id ? { tenant_id: context.tenant_id } : {}),
   });
 }
 
@@ -273,7 +314,10 @@ export async function getCustomUnits(): Promise<string[]> {
 export async function ensureUnit(name: string): Promise<void> {
   const trimmed = name.trim();
   if (!trimmed) return;
-  await supabase.from('ingredient_units').upsert({ name: trimmed }, { onConflict: 'name', ignoreDuplicates: true });
+  const context = await getMyTenantContext();
+  await supabase
+    .from('ingredient_units')
+    .upsert(withTenant({ name: trimmed }, context), { onConflict: 'tenant_id,name', ignoreDuplicates: true });
 }
 
 // 获取当前用户历史申购频次最高的食材ID（Top N）
@@ -365,7 +409,10 @@ export async function getSuppliers(): Promise<string[]> {
 }
 
 export async function createIngredient(ingredient: Omit<Ingredient, 'id' | 'created_at'>): Promise<string | null> {
-  const { error } = await supabase.from('ingredients').insert(ingredient);
+  const context = await getMyTenantContext();
+  const { error } = await supabase
+    .from('ingredients')
+    .insert(withTenant(ingredient as unknown as Record<string, unknown>, context, { includeStore: true }));
   if (error) { console.error('createIngredient error:', error.message); return error.message; }
   return null;
 }
@@ -400,10 +447,11 @@ export async function createPurchaseOrder(
   const user = (await supabase.auth.getUser()).data.user;
   if (!user) return null;
 
+  const context = await getMyTenantContext();
   // 创建申购单
   const { data: order, error } = await supabase
     .from('purchase_orders')
-    .insert({ submitter_id: user.id })
+    .insert(withTenant({ submitter_id: user.id }, context, { includeStore: true }))
     .select('id')
     .maybeSingle();
 
@@ -747,7 +795,9 @@ export async function sendNotification(params: {
   order_id?: string;
   perf_id?: string;
 }): Promise<void> {
+  const context = await getMyTenantContext();
   await supabase.from('notifications').insert({
+    ...(context.tenant_id ? { tenant_id: context.tenant_id } : {}),
     user_id: params.user_id,
     type: params.type,
     title: params.title,
@@ -768,13 +818,17 @@ export async function sendNotificationToAdmins(params: {
   body: string;
   order_id?: string;
 }): Promise<void> {
+  const context = await getMyTenantContext();
   const { data: admins } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, tenant_id')
     .in('role', ['admin', 'super_admin']);
   if (!admins || admins.length === 0) return;
+  const targetAdmins = admins.filter((admin) => !context.tenant_id || admin.tenant_id === context.tenant_id);
+  if (targetAdmins.length === 0) return;
   await supabase.from('notifications').insert(
-    admins.map((a: { id: string }) => ({
+    targetAdmins.map((a: { id: string; tenant_id?: string | null }) => ({
+      tenant_id: a.tenant_id ?? context.tenant_id ?? null,
       user_id: a.id,
       type: params.type,
       title: params.title,
@@ -784,7 +838,7 @@ export async function sendNotificationToAdmins(params: {
   );
   // 同步推送给所有管理员
   await triggerPush(
-    admins.map((a: { id: string }) => a.id),
+    targetAdmins.map((a: { id: string }) => a.id),
     params.title,
     params.body,
     params.order_id ? { order_id: params.order_id, type: params.type } : { type: params.type },
@@ -807,25 +861,31 @@ export async function sendNotificationToReviewers(params: {
     .map((p: { name: string }) => p.name);
 
   // admin / super_admin 角色也默认有审核权限
-  let reviewerQuery = supabase.from('profiles').select('id').in('role', ['admin', 'super_admin']);
-  let reviewers: { id: string }[] = [];
+  let reviewerQuery = supabase.from('profiles').select('id, tenant_id').in('role', ['admin', 'super_admin']);
+  let reviewers: { id: string; tenant_id?: string | null }[] = [];
   const { data: adminReviewers } = await reviewerQuery;
   reviewers = [...(adminReviewers ?? [])];
 
   if (reviewerPositions.length > 0) {
     const { data: posReviewers } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, tenant_id')
       .in('position', reviewerPositions);
     reviewers = [...reviewers, ...(posReviewers ?? [])];
   }
 
-  // 去重
-  const uniqueIds = [...new Set(reviewers.map((r) => r.id))];
+  const context = await getMyTenantContext();
+  const reviewerMap = new Map(
+    reviewers
+      .filter((reviewer) => !context.tenant_id || reviewer.tenant_id === context.tenant_id)
+      .map((reviewer) => [reviewer.id, reviewer])
+  );
+  const uniqueIds = [...reviewerMap.keys()];
   if (uniqueIds.length === 0) return;
 
   await supabase.from('notifications').insert(
     uniqueIds.map((id: string) => ({
+      tenant_id: reviewerMap.get(id)?.tenant_id ?? context.tenant_id ?? null,
       user_id: id,
       type: params.type,
       title: params.title,
@@ -1094,7 +1154,9 @@ export async function addOperationLog(params: {
     .eq('id', user.id)
     .maybeSingle();
   const operatorName = profile?.display_name || profile?.email?.split('@')[0] || '未知';
+  const context = await getMyTenantContext();
   await supabase.from('operation_logs').insert({
+    ...(context.tenant_id ? { tenant_id: context.tenant_id } : {}),
     operator_id: user.id,
     operator_name: operatorName,
     action: params.action,

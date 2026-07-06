@@ -64,12 +64,16 @@ export interface Profile {
   role: UserRole;
   position: string | null;
   account_id: string | null;
+  tenant_id?: string | null;
+  store_id?: string | null;
+  department_id?: string | null;
   created_at: string;
 }
 
 // 岗位记录
 export interface PositionRecord {
   id: string;
+  tenant_id?: string | null;
   name: string;
   sort_order: number;
   created_at: string;
@@ -79,6 +83,8 @@ export interface PositionRecord {
 // 食材
 export interface Ingredient {
   id: string;
+  tenant_id?: string | null;
+  store_id?: string | null;
   name: string;
   category: IngredientCategory;
   subcategory_id: string | null;
@@ -95,6 +101,8 @@ export interface Ingredient {
 // 申购单
 export interface PurchaseOrder {
   id: string;
+  tenant_id?: string | null;
+  store_id?: string | null;
   submitter_id: string;
   status: OrderStatus;
   note: string | null;
@@ -169,6 +177,7 @@ export type NotificationType =
 // 通知记录
 export interface Notification {
   id: string;
+  tenant_id?: string | null;
   user_id: string;
   type: NotificationType;
   title: string;
@@ -182,6 +191,7 @@ export interface Notification {
 // 操作日志记录
 export interface OperationLog {
   id: string;
+  tenant_id?: string | null;
   operator_id: string | null;
   operator_name: string | null;
   action: string;

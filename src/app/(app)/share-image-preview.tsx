@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 采购汇总图片预览页
  * 渲染包含所有食材的完整长图，提供「保存到相册」与「分享」两个入口
  */
@@ -207,7 +207,7 @@ export default function ShareImagePreviewScreen() {
 
           {/* 页脚 */}
           <Text style={{ fontSize: 11, color: '#9ca3af', textAlign: 'center', marginTop: 8 }}>
-            由开小灶PMS生成 · {dateStr}
+            由灶管家生成 · {dateStr}
           </Text>
         </View>
       </ScrollView>
@@ -234,3 +234,4 @@ export default function ShareImagePreviewScreen() {
     </SafeAreaView>
   );
 }
+

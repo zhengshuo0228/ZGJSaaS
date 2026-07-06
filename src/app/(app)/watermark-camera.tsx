@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 水印相机页 v4 — 长按录制 + 性能优化版
  * 1. 进入自动申请摄像头权限
  * 2. 拍照（点按）/ 短视频（长按，最多 10 秒）
@@ -62,7 +62,7 @@ function VideoPreview({ uri }: { uri: string }) {
 }
 
 const BUCKET = 'watermark-photos';
-const DEFAULT_COMPANY = '開小灶PMS';
+const DEFAULT_COMPANY = '灶管家';
 
 type WatermarkPosition = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center-bottom' | 'full' | 'custom';
 
@@ -946,7 +946,7 @@ export default function WatermarkCameraScreen() {
           <StatusBar style="light" />
           <Camera size={52} color="#fff" />
           <Text className="text-white text-lg font-semibold text-center">需要相机权限</Text>
-          <Text className="text-white/60 text-sm text-center">请允许開小灶PMS访问相机以使用水印拍照功能</Text>
+          <Text className="text-white/60 text-sm text-center">请允许灶管家访问相机以使用水印拍照功能</Text>
           <Pressable className="bg-white px-8 py-3 rounded-2xl active:opacity-80" onPress={requestPermission}>
             <Text className="text-black font-semibold text-base">授权相机</Text>
           </Pressable>
@@ -1415,3 +1415,4 @@ export default function WatermarkCameraScreen() {
     </View>
   );
 }
+

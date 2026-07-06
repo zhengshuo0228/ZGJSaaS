@@ -1,4 +1,4 @@
-// build-fix-1
+﻿// build-fix-1
 
 import { useEffect, useState } from 'react';
 import {
@@ -114,7 +114,7 @@ export default function ProfileScreen() {
           <View className="px-4 gap-3 mb-6">
             <View className="bg-card rounded-2xl p-4" style={{ boxShadow: [{ offsetX: 0, offsetY: 1, blurRadius: 3, color: 'rgba(0,0,0,0.06)' }] } as object}>
               <Text className="text-xs text-muted-foreground mb-1">账号</Text>
-              <Text className="text-sm font-medium text-foreground">{profile?.email?.replace(/@miaoda\.app$/, '') || '-'}</Text>
+              <Text className="text-sm font-medium text-foreground">{profile?.email?.replace(/@(zaoguanjia|miaoda)\.app$/, '') || '-'}</Text>
             </View>
 
             <View className="bg-card rounded-2xl p-4" style={{ boxShadow: [{ offsetX: 0, offsetY: 1, blurRadius: 3, color: 'rgba(0,0,0,0.06)' }] } as object}>
@@ -222,7 +222,7 @@ export default function ProfileScreen() {
 
           {/* 感谢语 */}
           <View className="px-4 mb-2 mt-2 items-center">
-            <Text className="text-sm text-muted-foreground">感谢您使用開小灶PMS 🎉</Text>
+            <Text className="text-sm text-muted-foreground">感谢您使用灶管家 🎉</Text>
           </View>
 
           {/* 退出登录 */}
@@ -240,3 +240,4 @@ export default function ProfileScreen() {
     </SafeAreaView>
   );
 }
+
