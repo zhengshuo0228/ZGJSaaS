@@ -389,4 +389,12 @@ CREATE POLICY watermark_comments_write_own ON public.watermark_comments FOR ALL 
 CREATE POLICY push_tokens_select_own ON public.user_push_tokens FOR SELECT TO authenticated USING (auth.uid() = user_id OR public.can_manage_tenant(tenant_id));
 CREATE POLICY push_tokens_write_own ON public.user_push_tokens FOR ALL TO authenticated USING (auth.uid() = user_id OR public.can_manage_tenant(tenant_id)) WITH CHECK (auth.uid() = user_id AND public.can_access_tenant(tenant_id));
 
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated;
+
 
