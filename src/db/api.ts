@@ -1,4 +1,5 @@
 import { supabase } from '@/client/supabase';
+import { RESERVED_ACCOUNT_MESSAGE, isReservedSystemAccount } from '@/lib/account';
 import type {
   Profile,
   Ingredient,
@@ -83,7 +84,7 @@ export async function getAllProfiles(filters?: {
   if (filters?.department_id) query = query.eq('department_id', filters.department_id);
 
   const { data } = await query;
-  return Array.isArray(data) ? data : [];
+  return Array.isArray(data) ? data.filter((profile) => !isReservedSystemAccount(profile.account_id) && !isReservedSystemAccount(profile.email)) : [];
 }
 
 export async function updateProfileRole(id: string, role: string): Promise<void> {
@@ -228,14 +229,13 @@ export async function deletePosition(id: string): Promise<void> {
 
 /** 更新岗位权限 */
 export async function updatePositionPermissions(id: string, permissions: string[]): Promise<{ error: string | null }> {
-  // 校验：仅 account_id='000' 的超管可编辑岗位权限
   const { data: me } = await supabase
     .from('profiles')
     .select('account_id')
     .eq('id', (await supabase.auth.getUser()).data.user?.id ?? '')
     .maybeSingle();
   if (me?.account_id !== '000') {
-    return { error: '仅 000 超管可编辑岗位权限' };
+    return { error: '当前账号无权编辑岗位权限' };
   }
   const { error } = await supabase.from('positions').update({ permissions }).eq('id', id);
   return { error: error?.message ?? null };
@@ -291,6 +291,9 @@ export async function adminCreateUser(params: {
   store_id?: string | null;
   department_id?: string | null;
 }): Promise<{ success: boolean; error?: string }> {
+  if (isReservedSystemAccount(params.email)) {
+    return { success: false, error: RESERVED_ACCOUNT_MESSAGE };
+  }
   const token = await getAuthToken();
   const context = await getMyTenantContext();
   const { data, error } = await supabase.functions.invoke('admin-user-ops', {

@@ -5,6 +5,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function normalizeAccountId(value: string) {
+  return value.trim().toLowerCase().split('@')[0];
+}
+
+function internalEmailFromAccount(value: string) {
+  return `${normalizeAccountId(value)}@zaoguanjia.app`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -76,28 +84,34 @@ Deno.serve(async (req) => {
       return ['owner', 'tenant_admin', 'store_admin'].includes((membership?.role as string) ?? '');
     };
 
-    // 000 超管保护：只有 000 自己才能操作自己，兼容新旧登录域名
     const PROTECTED_EMAILS = ['000@zaoguanjia.app', '000@miaoda.app'];
     const { data: targetProfile } = body.user_id
-      ? await adminClient.from('profiles').select('email').eq('id', body.user_id).maybeSingle()
+      ? await adminClient.from('profiles').select('email, account_id').eq('id', body.user_id).maybeSingle()
       : { data: null };
     const targetEmail = targetProfile?.email ?? '';
+    const targetAccountId = targetProfile?.account_id ?? '';
     if (
-      PROTECTED_EMAILS.includes(targetEmail) &&
+      (targetAccountId === '000' || PROTECTED_EMAILS.includes(targetEmail)) &&
       !PROTECTED_EMAILS.includes(caller.email ?? '') &&
       (action === 'update' || action === 'update_profile' || action === 'update_password' || action === 'delete')
     ) {
       return new Response(
-        JSON.stringify({ error: '000 账号受保护，仅本人可操作' }),
+        JSON.stringify({ error: '系统账号不可操作' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
     // ===== 创建账号 =====
     if (action === 'create') {
-      const { email, password, display_name, role = 'user', position } = body;
-      if (!email || !password) {
+      const { password, display_name, role = 'user', position } = body;
+      const rawAccount = String(body.account || body.email || '').trim();
+      const accountId = normalizeAccountId(rawAccount);
+      const email = internalEmailFromAccount(accountId);
+      if (!rawAccount || !password) {
         return new Response(JSON.stringify({ error: '账号和密码不能为空' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      if (accountId === '000') {
+        return new Response(JSON.stringify({ error: '该账号为系统保留账号，不可注册' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const tenantContext = body.tenant_context ?? {};
@@ -132,6 +146,7 @@ Deno.serve(async (req) => {
             display_name: display_name || null,
             role,
             position: position || null,
+            account_id: accountId,
             tenant_id: tenantId,
             store_id: storeId,
             department_id: departmentId,

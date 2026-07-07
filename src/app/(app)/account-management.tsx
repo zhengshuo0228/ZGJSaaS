@@ -57,6 +57,13 @@ import {
   saveTimeSettings,
   type TimePeriodSettings,
 } from '@/lib/timeSettings';
+import {
+  RESERVED_ACCOUNT_MESSAGE,
+  displayAccount,
+  isProtectedSystemProfile,
+  isReservedSystemAccount,
+  normalizeAccountInput,
+} from '@/lib/account';
 import { useProfile } from '@/context/ProfileContext';
 import type {
   DepartmentRecord,
@@ -212,6 +219,7 @@ export default function AccountManagementScreen() {
   );
   const filteredProfiles = useMemo(
     () => profiles.filter((profile) => {
+      if (isProtectedSystemProfile(profile)) return false;
       if (activeTenantId && profile.tenant_id !== activeTenantId) return false;
       if (selectedStoreId && profile.store_id !== selectedStoreId) return false;
       if (selectedDepartmentId && profile.department_id !== selectedDepartmentId) return false;
@@ -307,14 +315,16 @@ export default function AccountManagementScreen() {
   const handleCreate = async () => {
     const finalPw = newPwField.trim() || '123456';
     if (!newEmail.trim()) { setCreateError('账号不能为空'); return; }
+    const accountValue = normalizeAccountInput(newEmail);
+    if (isReservedSystemAccount(accountValue)) { setCreateError(RESERVED_ACCOUNT_MESSAGE); return; }
     if (!newName.trim()) { setCreateError('姓名不能为空'); return; }
     if (finalPw.length < 6) { setCreateError('密码至少 6 位'); return; }
     const orgError = validateOrg(newTenantId, newStoreId, newDepartmentId, newPos);
     if (orgError) { setCreateError(orgError); return; }
     setCreating(true);
     setCreateError('');
-    const rawInput = newEmail.trim();
-    const emailToUse = rawInput.includes('@') ? rawInput : `${rawInput}@zaoguanjia.app`;
+    const rawInput = accountValue;
+    const emailToUse = `${accountValue}@zaoguanjia.app`;
     const result = await adminCreateUser({
       email: emailToUse,
       password: finalPw,
@@ -528,7 +538,7 @@ export default function AccountManagementScreen() {
         <View className="flex-1 items-center justify-center px-8 gap-3">
           <Shield size={42} color="#9ca3af" />
           <Text className="text-lg font-bold text-foreground">暂无账号管理权限</Text>
-          <Text className="text-sm text-muted-foreground text-center">请联系品牌管理员或 000 平台超管，在岗位权限中开通“账号管理”。</Text>
+          <Text className="text-sm text-muted-foreground text-center">请联系品牌管理员，在岗位权限中开通“账号管理”。</Text>
           <Pressable onPress={() => router.replace('/(app)/home')} className="mt-2 bg-primary rounded-xl px-5 py-3">
             <Text className="text-white font-semibold">返回首页</Text>
           </Pressable>
@@ -570,7 +580,7 @@ export default function AccountManagementScreen() {
         </Pressable>
         <View className="flex-1">
           <Text className="text-xl font-bold text-foreground">组织管理</Text>
-          <Text className="text-xs text-muted-foreground mt-0.5">{isPlatformAdmin ? '平台超管 · 全品牌' : `${tenantName(myProfile?.tenant_id)} · 品牌后台`}</Text>
+          <Text className="text-xs text-muted-foreground mt-0.5">{isPlatformAdmin ? '组织后台' : `${tenantName(myProfile?.tenant_id)} · 品牌后台`}</Text>
         </View>
         {activeTab === 'accounts' && canManageAccounts ? (
           <Pressable onPress={openCreate} className="flex-row items-center gap-1 bg-primary rounded-xl px-3 py-2">
@@ -651,9 +661,10 @@ export default function AccountManagementScreen() {
               </View>
 
               {filteredProfiles.map((profile) => {
-                const displayName = profile.display_name || profile.email?.split('@')[0] || '未命名员工';
+                const accountLabel = displayAccount(profile);
+                const displayName = profile.display_name || accountLabel || '未命名员工';
                 const isSelf = profile.id === myProfile?.id;
-                const isProtected = profile.account_id === '000' || profile.email === '000@zaoguanjia.app' || profile.email === '000@miaoda.app';
+                const isProtected = isProtectedSystemProfile(profile);
                 const canEditThis = canManageAccounts && (!isProtected || isSelf);
                 return (
                   <View key={profile.id} className="bg-card rounded-2xl p-4 gap-3">
@@ -667,7 +678,7 @@ export default function AccountManagementScreen() {
                           {profile.position ? <Text className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded-full">{profile.position}</Text> : null}
                           {isSelf ? <Text className="text-xs text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">我</Text> : null}
                         </View>
-                        <Text className="text-xs text-muted-foreground mt-1">{profile.email?.replace(/@(zaoguanjia|miaoda)\.app$/, '') ?? profile.email}</Text>
+                        <Text className="text-xs text-muted-foreground mt-1">{accountLabel}</Text>
                         <Text className="text-xs text-muted-foreground mt-1">{tenantName(profile.tenant_id)} · {storeNameOf(profile.store_id)} · {departmentNameOf(profile.department_id)}</Text>
                       </View>
                     </View>
@@ -685,7 +696,7 @@ export default function AccountManagementScreen() {
                         </>
                       ) : (
                         <View className="flex-1 items-center py-2.5 bg-muted/60 rounded-xl">
-                          <Text className="text-xs text-muted-foreground">000 受保护</Text>
+                          <Text className="text-xs text-muted-foreground">系统账号不可操作</Text>
                         </View>
                       )}
                       {!isSelf && !isProtected ? (
@@ -775,7 +786,7 @@ export default function AccountManagementScreen() {
                   </Pressable>
                 </View>
                 {!canEditPositionPermissions ? (
-                  <Text className="text-xs text-muted-foreground">岗位可由品牌管理员新增；权限配置仅 000 平台超管可修改。</Text>
+                  <Text className="text-xs text-muted-foreground">岗位可由品牌管理员新增；权限配置需更高管理权限。</Text>
                 ) : null}
               </View>
               {positions.map((position) => (
@@ -916,7 +927,7 @@ export default function AccountManagementScreen() {
             <Pressable onPress={() => setPwTarget(null)}><X size={22} color="#374151" /></Pressable>
           </View>
           <View className="p-4 gap-4">
-            <Text className="text-sm text-muted-foreground">{pwTarget?.display_name || pwTarget?.email}</Text>
+            <Text className="text-sm text-muted-foreground">{pwTarget?.display_name || (pwTarget ? displayAccount(pwTarget) : '')}</Text>
             <TextInput className="border border-border rounded-xl px-4 py-3 text-sm text-foreground" placeholder="输入新密码（至少 6 位）" value={newPw} onChangeText={setNewPw} secureTextEntry autoFocus />
             {pwError ? <Text className="text-destructive text-sm">{pwError}</Text> : null}
             <Pressable onPress={handleSavePw} disabled={pwSaving} className="bg-primary rounded-xl py-4 items-center">

@@ -72,7 +72,7 @@ export default function PermissionGuard({
           <Shield size={42} color="#9ca3af" />
           <Text className="text-lg font-bold text-foreground">暂无{title}权限</Text>
           <Text className="text-sm text-muted-foreground text-center">
-            请联系品牌管理员或 000 平台超管，在岗位权限中开通相关功能。
+            请联系品牌管理员，在岗位权限中开通相关功能。
           </Text>
           <Pressable onPress={() => router.replace('/(app)/home')} className="mt-2 bg-primary rounded-xl px-5 py-3">
             <Text className="text-white font-semibold">返回首页</Text>

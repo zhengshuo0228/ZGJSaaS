@@ -14,15 +14,10 @@ import { CheckSquare, Eye, EyeOff, Square } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/client/supabase';
 import { useSession } from '@/ctx';
+import { buildInternalLoginCandidates } from '@/lib/account';
 import LogoImage from '../../../assets/icon.png';
 
 const REMEMBER_ME_KEY = 'remember_me_credentials';
-
-function getLoginCandidates(account: string) {
-  const trimmed = account.trim();
-  if (trimmed.includes('@')) return [trimmed];
-  return [`${trimmed}@zaoguanjia.app`, `${trimmed}@miaoda.app`];
-}
 
 export default function SignIn() {
   const router = useRouter();
@@ -56,8 +51,7 @@ export default function SignIn() {
 
     setLoading(true);
     setError('');
-    let lastError = '';
-    for (const email of getLoginCandidates(username)) {
+    for (const email of buildInternalLoginCandidates(username)) {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (!authError) {
         if (rememberMe) {
@@ -69,10 +63,9 @@ export default function SignIn() {
         router.replace('/');
         return;
       }
-      lastError = authError.message;
     }
 
-    setError(lastError || '登录失败，请检查账号密码，或联系管理员开通账号。');
+    setError('登录失败，请检查账号和密码，或联系管理员开通账号。');
     setLoading(false);
   };
 
@@ -119,7 +112,7 @@ export default function SignIn() {
             <TextInput
               className="rounded-2xl px-4 py-3.5 text-base"
               style={{ color: '#17211B', backgroundColor: '#F3FAF6', borderWidth: 1, borderColor: '#DDEBE4' }}
-              placeholder="请输入账号或邮箱"
+              placeholder="请输入账号"
               placeholderTextColor="#94A39B"
               value={username}
               onChangeText={(v) => { setUsername(v); setError(''); }}
@@ -203,7 +196,7 @@ export default function SignIn() {
         </View>
 
         <Text className="text-center text-xs mt-6 leading-5" style={{ color: '#94A39B' }}>
-          多品牌 SaaS 数据隔离 · 平台超管 000 统一管理
+          多品牌独立管理 · 数据安全隔离
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>

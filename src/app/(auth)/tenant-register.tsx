@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { supabase } from '@/client/supabase';
+import { isReservedSystemAccount, normalizeAccountInput, RESERVED_ACCOUNT_MESSAGE } from '@/lib/account';
 
 type RegisterResult = {
   success?: boolean;
@@ -40,6 +41,11 @@ export default function TenantRegister() {
       setError('密码至少 6 位');
       return;
     }
+    const accountValue = normalizeAccountInput(account);
+    if (isReservedSystemAccount(accountValue)) {
+      setError(RESERVED_ACCOUNT_MESSAGE);
+      return;
+    }
 
     setLoading(true);
     setError('');
@@ -50,7 +56,7 @@ export default function TenantRegister() {
         brand_name: brandName.trim(),
         store_name: storeName.trim(),
         contact_name: contactName.trim(),
-        account: account.trim(),
+        account: accountValue,
         phone: phone.trim() || null,
         password,
       },
@@ -62,7 +68,7 @@ export default function TenantRegister() {
       return;
     }
 
-    setMessage(`品牌已开通，登录账号：${data?.login_account || account.trim()}`);
+    setMessage(`品牌已开通，登录账号：${accountValue}`);
   };
 
   return (

@@ -13,8 +13,12 @@ function json(body: unknown, status = 200) {
 }
 
 function normalizeAccount(account: string) {
-  const trimmed = account.trim().toLowerCase();
-  return trimmed.includes('@') ? trimmed : `${trimmed}@zaoguanjia.app`;
+  const trimmed = account.trim().toLowerCase().split('@')[0];
+  return `${trimmed}@zaoguanjia.app`;
+}
+
+function normalizeAccountId(account: string) {
+  return account.trim().toLowerCase().split('@')[0];
 }
 
 function slugify(input: string) {
@@ -60,8 +64,12 @@ Deno.serve(async (req) => {
     if (password.length < 6) {
       return json({ error: '密码至少 6 位' }, 400);
     }
+    const accountId = normalizeAccountId(account);
+    if (accountId === '000') {
+      return json({ error: '该账号为系统保留账号，不可注册' }, 400);
+    }
 
-    const loginAccount = normalizeAccount(account);
+    const loginAccount = normalizeAccount(accountId);
     const baseSlug = slugify(brandName);
     const slug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
 
@@ -125,6 +133,7 @@ Deno.serve(async (req) => {
         display_name: contactName,
         role: 'admin',
         position: '店长',
+        account_id: accountId,
         tenant_id: tenantId,
         store_id: store.id,
         department_id: kitchen?.id ?? null,
@@ -146,13 +155,13 @@ Deno.serve(async (req) => {
         brand_name: brandName,
         store_name: storeName,
         contact_name: contactName,
-        account: loginAccount,
+        account: accountId,
         phone,
         status: 'approved',
         created_user_id: userId,
       });
 
-      return json({ success: true, tenant_id: tenantId, login_account: loginAccount });
+      return json({ success: true, tenant_id: tenantId, login_account: accountId });
     } catch (error) {
       await adminClient.auth.admin.deleteUser(userId).catch(() => undefined);
       return json({ error: error instanceof Error ? error.message : String(error) }, 500);
