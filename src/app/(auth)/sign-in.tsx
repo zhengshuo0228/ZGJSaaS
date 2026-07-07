@@ -14,14 +14,30 @@ import { CheckSquare, Eye, EyeOff, Square } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/client/supabase';
 import { useSession } from '@/ctx';
-import { buildInternalLoginCandidates } from '@/lib/account';
+import {
+  buildTenantLoginCandidates,
+  isReservedSystemAccount,
+  normalizeBrandLoginCode,
+  normalizeAccountInput,
+} from '@/lib/account';
 import LogoImage from '../../../assets/icon.png';
 
 const REMEMBER_ME_KEY = 'remember_me_credentials';
 
+type TenantSearchResult = {
+  tenant_id: string;
+  tenant_name: string;
+  login_code: string;
+  matched_store_name: string | null;
+};
+
 export default function SignIn() {
   const router = useRouter();
   const { enterGuestMode } = useSession();
+  const [brandQuery, setBrandQuery] = useState('');
+  const [selectedBrand, setSelectedBrand] = useState<TenantSearchResult | null>(null);
+  const [brandResults, setBrandResults] = useState<TenantSearchResult[]>([]);
+  const [brandSearching, setBrandSearching] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -33,7 +49,14 @@ export default function SignIn() {
     AsyncStorage.getItem(REMEMBER_ME_KEY).then((val) => {
       if (!val) return;
       try {
-        const saved = JSON.parse(val) as { username: string; password: string };
+        const saved = JSON.parse(val) as {
+          username: string;
+          password: string;
+          brandQuery?: string;
+          selectedBrand?: TenantSearchResult | null;
+        };
+        setBrandQuery(saved.brandQuery ?? saved.selectedBrand?.login_code ?? '');
+        setSelectedBrand(saved.selectedBrand ?? null);
         setUsername(saved.username);
         setPassword(saved.password);
         setRememberMe(true);
@@ -43,19 +66,60 @@ export default function SignIn() {
     });
   }, []);
 
+  useEffect(() => {
+    const query = brandQuery.trim();
+    if (selectedBrand && (query === selectedBrand.login_code || query === selectedBrand.tenant_name)) {
+      setBrandResults([]);
+      return;
+    }
+    if (!query) {
+      setBrandResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setBrandSearching(true);
+      const { data } = await supabase.functions.invoke<{ results?: TenantSearchResult[] }>('tenant-search', {
+        body: { query },
+      });
+      if (!cancelled) {
+        setBrandResults(Array.isArray(data?.results) ? data.results : []);
+        setBrandSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [brandQuery, selectedBrand]);
+
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
       setError('请输入账号和密码');
       return;
     }
+    const account = normalizeAccountInput(username);
+    const isSystemLogin = isReservedSystemAccount(account);
+    const brandLoginCode = selectedBrand?.login_code ?? normalizeBrandLoginCode(brandQuery);
+    if (!isSystemLogin && !brandLoginCode) {
+      setError('请选择品牌或输入品牌账号');
+      return;
+    }
 
     setLoading(true);
     setError('');
-    for (const email of buildInternalLoginCandidates(username)) {
+    for (const email of buildTenantLoginCandidates(username, brandLoginCode)) {
       const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
       if (!authError) {
         if (rememberMe) {
-          await AsyncStorage.setItem(REMEMBER_ME_KEY, JSON.stringify({ username: username.trim(), password }));
+          await AsyncStorage.setItem(REMEMBER_ME_KEY, JSON.stringify({
+            brandQuery: brandQuery.trim(),
+            selectedBrand,
+            username: username.trim(),
+            password,
+          }));
         } else {
           await AsyncStorage.removeItem(REMEMBER_ME_KEY);
         }
@@ -99,7 +163,7 @@ export default function SignIn() {
             灶管家
           </Text>
           <Text className="text-sm mt-2 text-center" style={{ color: '#66756D' }}>
-            连锁餐饮门店 · 申购绩效排休管理
+            专业餐饮日常管理系统
           </Text>
         </View>
 
@@ -107,6 +171,56 @@ export default function SignIn() {
           className="bg-white rounded-3xl p-6 gap-5"
           style={{ boxShadow: [{ offsetX: 0, offsetY: 8, blurRadius: 24, color: 'rgba(15,47,36,0.08)' }], borderCurve: 'continuous' } as object}
         >
+          <View>
+            <Text className="text-sm font-semibold mb-2" style={{ color: '#17211B' }}>品牌/门店</Text>
+            <TextInput
+              className="rounded-2xl px-4 py-3.5 text-base"
+              style={{ color: '#17211B', backgroundColor: '#F3FAF6', borderWidth: 1, borderColor: '#DDEBE4' }}
+              placeholder="输入品牌名称、品牌账号或门店"
+              placeholderTextColor="#94A39B"
+              value={brandQuery}
+              onChangeText={(value) => {
+                setBrandQuery(value);
+                setSelectedBrand(null);
+                setError('');
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+            />
+            {selectedBrand ? (
+              <View className="mt-2 rounded-xl px-3 py-2" style={{ backgroundColor: '#ECFDF5' }}>
+                <Text className="text-xs font-semibold" style={{ color: '#047857' }}>
+                  已选择：{selectedBrand.tenant_name}（{selectedBrand.login_code}）
+                </Text>
+              </View>
+            ) : null}
+            {brandSearching ? (
+              <Text className="text-xs mt-2" style={{ color: '#94A39B' }}>正在搜索品牌...</Text>
+            ) : null}
+            {!selectedBrand && brandResults.length > 0 ? (
+              <View className="mt-2 rounded-2xl overflow-hidden" style={{ borderWidth: 1, borderColor: '#DDEBE4' }}>
+                {brandResults.map((item) => (
+                  <Pressable
+                    key={item.tenant_id}
+                    onPress={() => {
+                      setSelectedBrand(item);
+                      setBrandQuery(item.login_code);
+                      setBrandResults([]);
+                      setError('');
+                    }}
+                    className="px-4 py-3 bg-white border-b border-border"
+                  >
+                    <Text className="text-sm font-semibold" style={{ color: '#17211B' }}>{item.tenant_name}</Text>
+                    <Text className="text-xs mt-1" style={{ color: '#66756D' }}>
+                      品牌账号：{item.login_code}{item.matched_store_name ? ` · 门店：${item.matched_store_name}` : ''}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+          </View>
+
           <View>
             <Text className="text-sm font-semibold mb-2" style={{ color: '#17211B' }}>账号</Text>
             <TextInput

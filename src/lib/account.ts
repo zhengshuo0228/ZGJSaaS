@@ -12,7 +12,27 @@ export function isReservedSystemAccount(value?: string | null) {
 export function buildInternalLoginCandidates(value: string) {
   const account = normalizeAccountInput(value);
   if (!account) return [];
+  if (account === RESERVED_SYSTEM_ACCOUNT) {
+    return [`${account}@zaoguanjia.app`, `${account}@miaoda.app`];
+  }
   return [`${account}@zaoguanjia.app`, `${account}@miaoda.app`];
+}
+
+export function normalizeBrandLoginCode(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
+export function buildTenantLoginCandidates(accountValue: string, brandLoginCode?: string | null) {
+  const account = normalizeAccountInput(accountValue);
+  const code = normalizeBrandLoginCode(brandLoginCode ?? '');
+  if (!account) return [];
+  if (account === RESERVED_SYSTEM_ACCOUNT) {
+    return buildInternalLoginCandidates(account);
+  }
+  return [
+    ...(code ? [`${code}.${account}@zaoguanjia.app`] : []),
+    ...buildInternalLoginCandidates(account),
+  ];
 }
 
 export function displayAccount(profile: { account_id?: string | null; email?: string | null }) {

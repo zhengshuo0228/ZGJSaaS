@@ -74,6 +74,7 @@ export interface TenantRecord {
   id: string;
   name: string;
   slug: string;
+  login_code?: string | null;
   contact_name: string | null;
   contact_phone: string | null;
   plan: string;

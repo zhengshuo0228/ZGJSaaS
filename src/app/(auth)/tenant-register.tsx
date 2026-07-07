@@ -11,7 +11,12 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { supabase } from '@/client/supabase';
-import { isReservedSystemAccount, normalizeAccountInput, RESERVED_ACCOUNT_MESSAGE } from '@/lib/account';
+import {
+  isReservedSystemAccount,
+  normalizeAccountInput,
+  normalizeBrandLoginCode,
+  RESERVED_ACCOUNT_MESSAGE,
+} from '@/lib/account';
 
 type RegisterResult = {
   success?: boolean;
@@ -23,6 +28,7 @@ type RegisterResult = {
 export default function TenantRegister() {
   const router = useRouter();
   const [brandName, setBrandName] = useState('');
+  const [brandAccount, setBrandAccount] = useState('');
   const [storeName, setStoreName] = useState('');
   const [contactName, setContactName] = useState('');
   const [account, setAccount] = useState('');
@@ -33,8 +39,9 @@ export default function TenantRegister() {
   const [error, setError] = useState('');
 
   const submit = async () => {
-    if (!brandName.trim() || !storeName.trim() || !contactName.trim() || !account.trim() || !password.trim()) {
-      setError('请填写品牌、门店、联系人、账号和密码');
+    const brandLoginCode = normalizeBrandLoginCode(brandAccount);
+    if (!brandName.trim() || !brandLoginCode || !storeName.trim() || !contactName.trim() || !account.trim() || !password.trim()) {
+      setError('请填写品牌、品牌账号、门店、联系人、账号和密码');
       return;
     }
     if (password.length < 6) {
@@ -54,6 +61,7 @@ export default function TenantRegister() {
     const { data, error: invokeError } = await supabase.functions.invoke<RegisterResult>('tenant-register', {
       body: {
         brand_name: brandName.trim(),
+        brand_login_code: brandLoginCode,
         store_name: storeName.trim(),
         contact_name: contactName.trim(),
         account: accountValue,
@@ -68,7 +76,7 @@ export default function TenantRegister() {
       return;
     }
 
-    setMessage(`品牌已开通，登录账号：${accountValue}`);
+    setMessage(`品牌已开通，品牌账号：${brandLoginCode}，登录账号：${accountValue}`);
   };
 
   return (
@@ -91,6 +99,7 @@ export default function TenantRegister() {
           style={{ boxShadow: [{ offsetX: 0, offsetY: 8, blurRadius: 24, color: 'rgba(15,47,36,0.08)' }] } as object}
         >
           <Field label="品牌/公司名称" value={brandName} onChangeText={setBrandName} placeholder="例如：開小灶餐饮" />
+          <Field label="品牌账号" value={brandAccount} onChangeText={setBrandAccount} placeholder="例如：kxz，仅限英文/数字" autoCapitalize="none" />
           <Field label="初始门店名称" value={storeName} onChangeText={setStoreName} placeholder="例如：总店" />
           <Field label="联系人姓名" value={contactName} onChangeText={setContactName} placeholder="例如：张三" />
           <Field label="管理员账号" value={account} onChangeText={setAccount} placeholder="手机号 / 工号 / 英文账号" autoCapitalize="none" />

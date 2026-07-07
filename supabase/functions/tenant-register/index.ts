@@ -12,9 +12,13 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function normalizeAccount(account: string) {
+function normalizeLoginCode(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
+function normalizeAccount(account: string, loginCode: string) {
   const trimmed = account.trim().toLowerCase().split('@')[0];
-  return `${trimmed}@zaoguanjia.app`;
+  return `${loginCode}.${trimmed}@zaoguanjia.app`;
 }
 
 function normalizeAccountId(account: string) {
@@ -52,14 +56,15 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const brandName = String(body.brand_name || '').trim();
+    const brandLoginCode = normalizeLoginCode(String(body.brand_login_code || ''));
     const storeName = String(body.store_name || '').trim();
     const contactName = String(body.contact_name || '').trim();
     const account = String(body.account || '').trim();
     const phone = body.phone ? String(body.phone).trim() : null;
     const password = String(body.password || '');
 
-    if (!brandName || !storeName || !contactName || !account || !password) {
-      return json({ error: '品牌、门店、联系人、账号和密码不能为空' }, 400);
+    if (!brandName || !brandLoginCode || !storeName || !contactName || !account || !password) {
+      return json({ error: '品牌、品牌账号、门店、联系人、账号和密码不能为空' }, 400);
     }
     if (password.length < 6) {
       return json({ error: '密码至少 6 位' }, 400);
@@ -69,7 +74,7 @@ Deno.serve(async (req) => {
       return json({ error: '该账号为系统保留账号，不可注册' }, 400);
     }
 
-    const loginAccount = normalizeAccount(accountId);
+    const loginAccount = normalizeAccount(accountId, brandLoginCode);
     const baseSlug = slugify(brandName);
     const slug = `${baseSlug}-${crypto.randomUUID().slice(0, 8)}`;
 
@@ -92,6 +97,7 @@ Deno.serve(async (req) => {
         .insert({
           name: brandName,
           slug,
+          login_code: brandLoginCode,
           contact_name: contactName,
           contact_phone: phone,
           status: 'free_active',

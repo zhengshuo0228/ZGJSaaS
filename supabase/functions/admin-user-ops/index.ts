@@ -9,8 +9,14 @@ function normalizeAccountId(value: string) {
   return value.trim().toLowerCase().split('@')[0];
 }
 
-function internalEmailFromAccount(value: string) {
-  return `${normalizeAccountId(value)}@zaoguanjia.app`;
+function normalizeLoginCode(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
+function internalEmailFromAccount(value: string, loginCode?: string | null) {
+  const account = normalizeAccountId(value);
+  const code = normalizeLoginCode(loginCode ?? '');
+  return code ? `${code}.${account}@zaoguanjia.app` : `${account}@zaoguanjia.app`;
 }
 
 Deno.serve(async (req) => {
@@ -106,7 +112,6 @@ Deno.serve(async (req) => {
       const { password, display_name, role = 'user', position } = body;
       const rawAccount = String(body.account || body.email || '').trim();
       const accountId = normalizeAccountId(rawAccount);
-      const email = internalEmailFromAccount(accountId);
       if (!rawAccount || !password) {
         return new Response(JSON.stringify({ error: '账号和密码不能为空' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
@@ -118,6 +123,16 @@ Deno.serve(async (req) => {
       const tenantId = body.tenant_id ?? tenantContext.tenant_id ?? callerProfile.tenant_id ?? null;
       const storeId = body.store_id ?? tenantContext.store_id ?? callerProfile.store_id ?? null;
       const departmentId = body.department_id ?? tenantContext.department_id ?? callerProfile.department_id ?? null;
+      let tenantLoginCode: string | null = null;
+      if (tenantId) {
+        const { data: tenantRow } = await adminClient
+          .from('tenants')
+          .select('login_code, slug')
+          .eq('id', tenantId)
+          .maybeSingle();
+        tenantLoginCode = (tenantRow?.login_code as string | null | undefined) ?? (tenantRow?.slug as string | null | undefined) ?? null;
+      }
+      const email = internalEmailFromAccount(accountId, tenantLoginCode);
 
       if (!tenantId && !isPlatformAdmin) {
         return new Response(JSON.stringify({ error: '当前账号未绑定品牌租户，无法创建账号' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
